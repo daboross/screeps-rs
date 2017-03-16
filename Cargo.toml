@@ -1,0 +1,34 @@
+[package]
+name = "screeps-conrod"
+version = "0.1.0"
+authors = ["Dabo Ross <daboross@daboross.net>"]
+description = "Testbed open source GUI client for the screeps game"
+
+repository = "https://github.com/daboross/conrod-testing"
+
+readme = "README.md"
+
+keywords = ["screeps"]
+categories = ["games"]
+license = "MIT"
+
+[lib]
+name = "screeps_conrod"
+path = "src/rust/lib.rs"
+
+[dependencies]
+rand = "0.3"
+glium = "0.16"
+glutin = "0.7"
+rusttype = "0.2"
+
+[dependencies.screeps-api]
+path = "../screeps-api/"
+
+[dependencies.conrod]
+version = "0.51"
+features = ["glium", "winit"]
+
+[[bin]]
+name = "screeps-client"
+doc = false
