@@ -16,7 +16,8 @@ use ui::Event;
 
 pub fn main() {
     // Create window.
-    let display = glium::glutin::WindowBuilder::new()
+    let display = glutin::WindowBuilder::new()
+        .with_dimensions(640, 480)
         .with_vsync()
         .with_title("Screeps Conrod Client")
         .build_glium()
@@ -60,16 +61,18 @@ fn main_window_loop(display: glium::backend::glutin_backend::GlutinFacade,
 
         match next_event {
             Event::Glutin(event) => {
+                println!("[lib]\tGlutin Event: {:?}", event);
+
                 // Use the `winit` backend feature to convert the winit event to a conrod one.
                 if let Some(event) = conrod::backend::winit::convert(event.clone(), &display) {
                     println!("[lib]\tConrod Event: {:?}", event);
                     ui.handle_event(event);
                     events.needs_update();
                 }
-                println!("[lib]\tGlutin Event: {:?}", event);
+
                 match event {
                     // Break from the loop upon `Escape`.
-                    glutin::Event::KeyboardInput(_, _, Some(glium::glutin::VirtualKeyCode::Escape)) |
+                    glutin::Event::KeyboardInput(_, _, Some(glutin::VirtualKeyCode::Escape)) |
                     glutin::Event::Closed => return,
                     // glutin::Event::Focused(true) |
                     glutin::Event::Refresh => {
@@ -94,7 +97,7 @@ fn main_window_loop(display: glium::backend::glutin_backend::GlutinFacade,
                     let mut target = display.draw();
                     target.clear_color(0.0, 0.0, 0.0, 1.0);
                     renderer.draw(&display, &mut target, &image_map)
-                        .uwd(FailStage::Runtime, "Failed to draw target to display");
+                        .uw(FailStage::Runtime, "Failed to draw target to display");
                     target.finish().uw(FailStage::Runtime, "Failed to finish target drawing");
                 }
             }

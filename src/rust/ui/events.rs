@@ -20,7 +20,7 @@ pub struct EventLoop<'a> {
 }
 
 impl<'a> EventLoop<'a> {
-    pub fn new<'b>(window: &'b glium::Display) -> EventLoop<'b> {
+    pub fn new(window: &'a glium::Display) -> Self {
         EventLoop {
             display: window,
             ui_needs_update: true,
@@ -77,7 +77,7 @@ impl<'a> EventLoop<'a> {
 pub enum Event {
     /// A glutin event was found.
     Glutin(glutin::Event),
-    /// The need to update the UI was found.
+    /// The UI needs to be updated.
     UpdateUi,
     /// The glutin window did not yield any events even with wait_events, and a UI update is not needed.
     None,
