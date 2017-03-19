@@ -1,19 +1,19 @@
 [package]
-name = "screeps-conrod"
+name = "conrod-testing"
 version = "0.1.0"
 authors = ["Dabo Ross <daboross@daboross.net>"]
-description = "Testbed open source GUI client for the screeps game"
+description = "Personal testbed of conrod."
 
 repository = "https://github.com/daboross/conrod-testing"
 
 readme = "README.md"
 
-keywords = ["screeps"]
+keywords = []
 categories = ["games"]
 license = "MIT"
 
 [lib]
-name = "screeps_conrod"
+name = "conrod_testing"
 path = "src/rust/lib.rs"
 
 [dependencies]
@@ -30,5 +30,5 @@ version = "0.51"
 features = ["glium", "winit"]
 
 [[bin]]
-name = "screeps-client"
+name = "testbed"
 doc = false
