@@ -15,7 +15,7 @@ use std::{time, thread};
 /// [ev]: https://github.com/PistonDevelopers/conrod/blob/master/examples/support/mod.rs#L367
 pub struct EventLoop<'a> {
     display: &'a glium::Display,
-    ui_needs_update: bool,
+    ui_needs_update: u8,
     last_ui_update: time::Instant,
 }
 
@@ -23,7 +23,7 @@ impl<'a> EventLoop<'a> {
     pub fn new(window: &'a glium::Display) -> Self {
         EventLoop {
             display: window,
-            ui_needs_update: true,
+            ui_needs_update: 1,
             last_ui_update: time::Instant::now() - time::Duration::from_millis(16),
         }
     }
@@ -39,19 +39,17 @@ impl<'a> EventLoop<'a> {
             return Event::Glutin(event);
         }
 
-        if self.ui_needs_update {
+        if self.ui_needs_update > 0 {
             let sixteen_ms = time::Duration::from_millis(16);
-            let mut now = time::Instant::now();
-            let time_since_update = now - self.last_ui_update;
-            if time_since_update < sixteen_ms {
-                thread::sleep(sixteen_ms - time_since_update);
+            let time_since = self.last_ui_update.elapsed();
+            if time_since < sixteen_ms {
+                thread::sleep(sixteen_ms - time_since);
                 if let Some(event) = self.poll_event() {
                     return Event::Glutin(event);
                 }
-                now = time::Instant::now();
             }
-            self.last_ui_update = now;
-            self.ui_needs_update = false;
+            self.last_ui_update = time::Instant::now();
+            self.ui_needs_update -= 1;
             return Event::UpdateUi;
         }
 
@@ -70,7 +68,7 @@ impl<'a> EventLoop<'a> {
     ///
     /// This is primarily used on the occasion that some part of the `Ui` is still animating and
     /// requires further updates to do so.
-    pub fn needs_update(&mut self) { self.ui_needs_update = true; }
+    pub fn needs_update(&mut self) { self.ui_needs_update = 3; }
 }
 
 /// Event returned from EventLoop.
