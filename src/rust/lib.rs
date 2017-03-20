@@ -56,16 +56,19 @@ fn main_window_loop(display: glium::backend::glutin_backend::GlutinFacade,
                     mut renderer: conrod::backend::glium::Renderer) {
     let mut events = ui::EventLoop::new(&display);
 
+    let mut state = ui::GraphicsState::new();
+
     loop {
         let next_event = events.next();
 
         match next_event {
             Event::Glutin(event) => {
-                println!("[lib]\tGlutin Event: {:?}", event);
+                // println!("[lib]\tGlutin Event: {:?}", event);
 
                 // Use the `winit` backend feature to convert the winit event to a conrod one.
                 if let Some(event) = conrod::backend::winit::convert(event.clone(), &display) {
-                    println!("[lib]\tConrod Event: {:?}", event);
+                    // println!("[lib]\tConrod Event: {:?}", event);
+
                     ui.handle_event(event);
                     events.needs_update();
                 }
@@ -83,16 +86,18 @@ fn main_window_loop(display: glium::backend::glutin_backend::GlutinFacade,
                 }
             }
             Event::UpdateUi => {
-                println!("[lib]\tUpdateUI Event.");
+                // println!("[lib]\tUpdateUI Event.");
+
                 {
                     let mut ui_cell = ui.set_widgets();
 
                     // Create main screen.
-                    ui::main_screen(&mut ui_cell, &mut ids);
+                    ui::create(&mut ui_cell, &mut ids, &mut state);
                 }
                 // Render the `Ui` and then display it on the screen.
                 if let Some(primitives) = ui.draw_if_changed() {
-                    println!("[lib]\tRedraw.");
+                    //println!("[lib]\tRedraw.");
+
                     renderer.fill(&display, primitives, &image_map);
                     let mut target = display.draw();
                     target.clear_color(0.0, 0.0, 0.0, 1.0);
