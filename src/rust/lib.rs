@@ -1,20 +1,33 @@
+// Graphics
 #[macro_use]
 extern crate conrod;
 extern crate glium;
 extern crate glutin;
 extern crate rusttype;
+// Network
+extern crate hyper;
+extern crate hyper_rustls;
+extern crate screeps_api;
+extern crate fern;
+// Logging
+#[macro_use]
+extern crate log;
+extern crate time;
 
-pub mod failure;
+pub mod debugging;
 pub mod ui;
+pub mod network;
+pub mod glue;
 
-// Brings in `.uw()` and `.uwd()` to scope for prettier panics (these functions are similar to .unwrap()).
-
-use failure::{FailureUnwrap, FailureUnwrapDebug, FailStage};
+use debugging::{FailureUnwrap, FailStage};
 use glium::{DisplayBuild, Surface};
+pub use glue::App;
 use ui::Event;
 
 
 pub fn main() {
+    debugging::setup_logger();
+
     // Create window.
     let display = glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
@@ -23,53 +36,37 @@ pub fn main() {
         .build_glium()
         .uw(FailStage::Startup, "Failed to create glutin window.");
 
-    let (width, height) = display.get_window()
-        .uw(FailStage::Startup, "Failed to get window.")
-        .get_inner_size()
-        .uw(FailStage::Startup, "Failed to get window size.");
-
-    // Create UI.
-    let mut ui = conrod::UiBuilder::new([width as f64, height as f64]).build();
+    // Create UI and other components.
+    let mut app = App::new(display);
 
     // Add font.
-    ui.fonts.insert(akashi_font());
+    app.ui.fonts.insert(akashi_font());
 
-    // A type used for converting `conrod::render::Primitives` into `Command`s that can be used
-    // for drawing to the glium `Surface`.
-    let renderer = conrod::backend::glium::Renderer::new(&display)
-        .uwd(FailStage::Startup, "Failed to load conrod glium renderer.");
-
-    // The image map describing each of our widget->image mappings (in our case, none).
-    let image_map = conrod::image::Map::new();
-
-    // Instantiate the generated list of widget identifiers.
-    let ids = ui::Ids::new(ui.widget_id_generator());
-
-
-    main_window_loop(display, ui, image_map, ids, renderer)
+    main_window_loop(app);
 }
 
-fn main_window_loop(display: glium::backend::glutin_backend::GlutinFacade,
-                    mut ui: conrod::Ui,
-                    image_map: conrod::image::Map<glium::texture::Texture2d>,
-                    mut ids: ui::Ids,
-                    mut renderer: conrod::backend::glium::Renderer) {
-    let mut events = ui::EventLoop::new(&display);
+fn main_window_loop(mut app: App) {
+    let mut events = ui::EventLoop::new(&app.display);
 
-    let mut state = ui::GraphicsState::new();
+    let mut state = ui::GraphicsState::login_screen();
 
     loop {
+        if let ui::GraphicsState::Exit = state {
+            info!("exiting.");
+            break;
+        }
+
         let next_event = events.next();
 
         match next_event {
             Event::Glutin(event) => {
-                // println!("[lib]\tGlutin Event: {:?}", event);
+                debug!("[lib]\tGlutin Event: {:?}", event);
 
                 // Use the `winit` backend feature to convert the winit event to a conrod one.
-                if let Some(event) = conrod::backend::winit::convert(event.clone(), &display) {
-                    // println!("[lib]\tConrod Event: {:?}", event);
+                if let Some(event) = conrod::backend::winit::convert(event.clone(), &app.display) {
+                    debug!("[lib]\tConrod Event: {:?}", event);
 
-                    ui.handle_event(event);
+                    app.ui.handle_event(event);
                     events.needs_update();
                 }
 
@@ -79,35 +76,36 @@ fn main_window_loop(display: glium::backend::glutin_backend::GlutinFacade,
                     glutin::Event::Closed => return,
                     // glutin::Event::Focused(true) |
                     glutin::Event::Refresh => {
-                        ui.needs_redraw();
+                        app.ui.needs_redraw();
                         events.needs_update();
                     }
                     _ => (),
                 }
             }
             Event::UpdateUi => {
-                // println!("[lib]\tUpdateUI Event.");
+                debug!("[lib]\tUpdateUI Event.");
 
                 {
-                    let mut ui_cell = ui.set_widgets();
+                    let mut ui_cell = app.ui.set_widgets();
 
                     // Create main screen.
-                    ui::create(&mut ui_cell, &mut ids, &mut state);
+                    ui::create(&mut ui_cell, &mut app.ui_ids, &app.display, &mut state);
                 }
-                // Render the `Ui` and then display it on the screen.
-                if let Some(primitives) = ui.draw_if_changed() {
-                    //println!("[lib]\tRedraw.");
 
-                    renderer.fill(&display, primitives, &image_map);
-                    let mut target = display.draw();
+                // Render the `Ui` and then display it on the screen.
+                if let Some(primitives) = app.ui.draw_if_changed() {
+
+                    app.renderer.fill(&app.display, primitives, &app.image_map);
+                    let mut target = app.display.draw();
                     target.clear_color(0.0, 0.0, 0.0, 1.0);
-                    renderer.draw(&display, &mut target, &image_map)
+                    app.renderer
+                        .draw(&app.display, &mut target, &app.image_map)
                         .uw(FailStage::Runtime, "Failed to draw target to display");
                     target.finish().uw(FailStage::Runtime, "Failed to finish target drawing");
                 }
             }
             Event::None => {
-                println!("Warning: could not find any events.");
+                error!("Warning: could not find any events.");
             }
         }
     }

@@ -17,17 +17,19 @@ name = "conrod_testing"
 path = "src/rust/lib.rs"
 
 [dependencies]
-rand = "0.3"
+# Graphics
 glium = "0.16"
 glutin = "0.7"
 rusttype = "0.2"
-
-[dependencies.screeps-api]
-path = "../screeps-api/"
-
-[dependencies.conrod]
-version = "0.51"
-features = ["glium", "winit"]
+conrod = { version = "0.51", features = ["glium", "winit"] }
+# Networking
+hyper = "0.10"
+hyper-rustls = "0.3"
+screeps-api = { path = "../screeps-api" }
+# Logging
+time = "0.1"
+log = "0.3"
+fern = "0.3"
 
 [[bin]]
 name = "testbed"

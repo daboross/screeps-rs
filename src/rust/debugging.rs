@@ -1,3 +1,6 @@
+use fern;
+
+use log;
 use std::fmt::{self, Display, Debug};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -106,4 +109,17 @@ impl<T, E> FailureUnwrapDebug for Result<T, E>
             Err(e) => fail_gracefully::<&str, E>(stage, Some(DisplayOrDebug::Debug(e)), msg),
         }
     }
+}
+
+pub fn setup_logger() {
+    let logger_config = fern::DispatchConfig {
+        format: Box::new(|msg: &str, level: &log::LogLevel, _location: &log::LogLocation| {
+            let now = ::time::now();
+            format!("[{}][{}] {}", now.strftime("%H:%M:%S").unwrap(), level, msg)
+        }),
+        output: vec![fern::OutputConfig::stdout()],
+        level: log::LogLevelFilter::Trace,
+    };
+
+    fern::init_global_logger(logger_config, log::LogLevelFilter::Info).expect("failed to initialize global logger.");
 }
