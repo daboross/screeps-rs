@@ -22,6 +22,7 @@ pub mod glue;
 use debugging::{FailureUnwrap, FailStage};
 use glium::{DisplayBuild, Surface};
 pub use glue::App;
+use glue::AppCell;
 use ui::Event;
 
 
@@ -86,10 +87,19 @@ fn main_window_loop(mut app: App) {
                 debug!("[lib]\tUpdateUI Event.");
 
                 {
-                    let mut ui_cell = app.ui.set_widgets();
+                    let App { ref mut ui,
+                              ref display,
+                              ref mut image_map,
+                              ref mut ids,
+                              ref mut renderer,
+                              ref mut net_cache,
+                              .. } = app;
+
+                    let mut ui_cell = ui.set_widgets();
+                    let mut cell = AppCell::cell(&mut ui_cell, display, image_map, ids, renderer, net_cache);
 
                     // Create main screen.
-                    ui::create(&mut ui_cell, &mut app.ui_ids, &app.display, &mut state);
+                    ui::create(&mut cell, &mut state);
                 }
 
                 // Render the `Ui` and then display it on the screen.

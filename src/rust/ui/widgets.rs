@@ -1,10 +1,14 @@
+use std::default::Default;
+
 use conrod::{self, color, Colorable, Labelable, Positionable, Sizeable, Widget, Borderable};
 use conrod::widget::*;
-use debugging::{FailureUnwrap, FailStage};
-use glium;
-use network::{self, NetworkRequests, FinishedRequest};
-use std::default::Default;
+
 use time;
+use screeps_api;
+
+use debugging::{FailureUnwrap, FailStage};
+use network::{self, NetworkRequests, Request};
+use glue::AppCell;
 
 const HEADER_HEIGHT: conrod::Scalar = 30.0;
 
@@ -72,12 +76,12 @@ impl GraphicsState {
     }
 }
 
-pub fn create(ui: &mut conrod::UiCell, ids: &Ids, display: &glium::Display, state: &mut GraphicsState) {
+pub fn create(app: &mut AppCell, state: &mut GraphicsState) {
     let mut update = None;
 
     match *state {
-        GraphicsState::LoginScreen(ref mut inner) => login_screen(ui, ids, inner, display, &mut update),
-        GraphicsState::MainScreen(ref mut inner) => main_screen(ui, ids, inner, &mut update),
+        GraphicsState::LoginScreen(ref mut inner) => login_screen(app, inner, &mut update),
+        GraphicsState::MainScreen(ref mut inner) => main_screen(app, inner, &mut update),
         GraphicsState::Exit => panic!("Should have exited."),
     }
 
@@ -86,45 +90,26 @@ pub fn create(ui: &mut conrod::UiCell, ids: &Ids, display: &glium::Display, stat
     }
 }
 
-fn login_screen(ui: &mut conrod::UiCell,
-                ids: &Ids,
-                state: &mut LoginScreenState,
-                display: &glium::Display,
-                update: &mut Option<GraphicsState>) {
-    let mut transition = false;
+fn login_screen(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Option<GraphicsState>) {
     if let Some(ref mut network) = state.network {
-        while let Some(evt) = network.poll() {
-            match evt {
-                FinishedRequest::Login { result, .. } => {
-                    match result {
-                        Ok(()) => {
-                            transition = true;
-                            break;
-                        }
-                        Err(e) => {
-                            // TODO: graphical stuff here.
-                            warn!("Login failed: {}", e);
-                            state.pending_since = None
-                        }
-                    }
-                }
-                // TODO: send other events to the app.
-            }
-        }
+        app.net_cache.align(network);
     }
 
-    if transition {
+    if app.net_cache.login_state() == network::LoginState::LoggedIn {
         if let Some(network) = state.network.take() {
             let mut new_state = MainScreenState {
                 network: network,
                 panels: PanelStates::default(),
             };
             let mut temp_secondary_update = None;
-            main_screen(ui, ids, &mut new_state, &mut temp_secondary_update);
+            main_screen(app, &mut new_state, &mut temp_secondary_update);
             *update = Some(temp_secondary_update.unwrap_or_else(|| GraphicsState::MainScreen(new_state)));
             return;
         }
     }
+
+    let AppCell { ref mut ui, ref display, ref mut image_map, ref mut ids, ref mut renderer, ref mut net_cache, .. } =
+        *app;
 
     use conrod::widget::text_box::Event as TextBoxEvent;
 
@@ -169,6 +154,7 @@ fn login_screen(ui: &mut conrod::UiCell,
                      parent: Id,
                      id: Id,
                      width: conrod::Scalar,
+                     hide: bool,
                      ui: &mut conrod::UiCell)
                      -> bool {
         let events = TextBox::new(&text)
@@ -177,6 +163,7 @@ fn login_screen(ui: &mut conrod::UiCell,
             .font_size(ui.theme.font_size_small)
             .left_justify()
             .pad_text(5.0)
+            .hide_with_char(if hide { Some('*') } else { None })
             // position
             .mid_right_with_margin_on(parent, 10.0)
             .set(id, ui);
@@ -232,6 +219,7 @@ fn login_screen(ui: &mut conrod::UiCell,
                                                ids.login_username_canvas,
                                                ids.login_username_textbox,
                                                LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
+                                               false,
                                                ui);
 
     // Password field
@@ -239,6 +227,7 @@ fn login_screen(ui: &mut conrod::UiCell,
                                                ids.login_password_canvas,
                                                ids.login_password_textbox,
                                                LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
+                                               true,
                                                ui);
 
     let submit_pressed = Button::new()
@@ -273,24 +262,48 @@ fn login_screen(ui: &mut conrod::UiCell,
 
     if exit_pressed {
         *update = Some(GraphicsState::Exit);
-    } else if (submit_pressed || password_enter_pressed || username_enter_pressed) &&
-              state.username.len() > 0 && state.password.len() > 0 {
-        let proxy = display.get_window()
-            .uw(FailStage::Runtime, "could not find window, headless?")
-            .create_window_proxy();
-        let network = NetworkRequests::new(proxy, state.username.clone(), state.password.clone());
-        state.network = Some(network);
-        state.pending_since = Some(time::now_utc());
+    } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0 &&
+              state.password.len() > 0 {
+        match state.network {
+            Some(ref mut net) => {
+                net.send(Request::login(&*state.username, &*state.password));
+            }
+            None => {
+                let proxy = display.get_window()
+                    .uw(FailStage::Runtime, "could not find window, headless?")
+                    .create_window_proxy();
+                let network = NetworkRequests::new(proxy, state.username.clone(), state.password.clone());
+                state.network = Some(network);
+                state.pending_since = Some(time::now_utc());
+            }
+        }
     }
 }
 
-fn main_screen(ui: &mut conrod::UiCell, ids: &Ids, state: &mut MainScreenState, update: &mut Option<GraphicsState>) {
+fn main_screen<'a>(app: &'a mut AppCell,
+                       state: &'a mut MainScreenState,
+                       update: &'a mut Option<GraphicsState>) {
+    let AppCell { ref mut ui, ref mut net_cache, ref ids, ref display, .. } = *app;
     let body = Canvas::new()
         .color(color::DARK_CHARCOAL)
         .border(5.0)
         .border_color(color::DARK_GREY);
     frame(ui, ids, body);
     left_panel_available(ui, ids, &mut state.panels, update);
+
+    {
+        let mut net = net_cache.align(&mut state.network);
+        if let Some(info) = net.my_info() {
+            Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))
+                // style
+                .font_size(ui.theme.font_size_small)
+                .right_justify()
+                .no_line_wrap()
+                // position
+                .mid_right_with_margin_on(ids.header, 10.0)
+                .set(ids.username_gcl_header, ui);
+        }
+    }
 }
 
 fn left_panel_available(ui: &mut conrod::UiCell,
@@ -380,6 +393,8 @@ widget_ids! {
         // Main screen
         left_panel_toggle,
         left_panel_canvas,
+
+        username_gcl_header,
 
         // Login screen
         login_canvas,
