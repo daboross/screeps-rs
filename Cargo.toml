@@ -21,15 +21,22 @@ path = "src/rust/lib.rs"
 glium = "0.16"
 glutin = "0.7"
 rusttype = "0.2"
-conrod = { version = "0.51", features = ["glium", "winit"] }
+# now below:
+# conrod = { version = "0.51", features = ["glium", "winit"] }
 # Networking
 hyper = "0.10"
 hyper-rustls = "0.3"
-screeps-api = { path = "../screeps-api" }
+screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git" }
 # Logging
 time = "0.1"
 log = "0.3"
 fern = "0.3"
+
+[dependencies.conrod]
+# waiting on my finishing https://github.com/PistonDevelopers/conrod/pull/964
+git = "https://github.com/daboross/conrod.git"
+branch = "add-password-text-boxes"
+features = ["glium", "winit"]
 
 [[bin]]
 name = "testbed"

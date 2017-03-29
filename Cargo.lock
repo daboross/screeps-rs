@@ -2,7 +2,7 @@
 name = "conrod-testing"
 version = "0.1.0"
 dependencies = [
- "conrod 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conrod 0.51.1 (git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes)",
  "fern 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -10,7 +10,7 @@ dependencies = [
  "hyper-rustls 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "screeps-api 0.0.1",
+ "screeps-api 0.0.1 (git+https://github.com/daboross/rust-screeps-api.git)",
  "time 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -121,7 +121,7 @@ dependencies = [
 [[package]]
 name = "conrod"
 version = "0.51.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes#0b9b71e1c0dea05e4a7f231fb507a855d8bc50f0"
 dependencies = [
  "daggy 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -704,6 +704,7 @@ dependencies = [
 [[package]]
 name = "screeps-api"
 version = "0.0.1"
+source = "git+https://github.com/daboross/rust-screeps-api.git#2b4d859632088f2d46faddd0a6ca5f19d1fe058e"
 dependencies = [
  "hyper 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.9.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1046,7 +1047,7 @@ dependencies = [
 "checksum cgl 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "8bdd78cca65a739cb5475dbf6b6bbb49373e327f4a6f2b499c0f98632df38c10"
 "checksum cocoa 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3afe4613f57a171039a98db1773f5840b5743cf85aaf03afb65ddfade4f4a9db"
 "checksum cocoa 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1e1be5fd98bb7e8ef0eea233a4984f4e85ecdcfa002a90b8b12b7a20faf44dc1"
-"checksum conrod 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)" = "60a5e9796ff598358b115f8118c9b94bd1cb1b67c34a7c0e8af0606eabab07f3"
+"checksum conrod 0.51.1 (git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes)" = "<none>"
 "checksum core-foundation 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "25bfd746d203017f7d5cbd31ee5d8e17f94b6521c7af77ece6c9e4b2d4b16c67"
 "checksum core-foundation-sys 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "065a5d7ffdcbc8fa145d6f0746f3555025b9097a9e9cda59f7467abae670c78d"
 "checksum core-graphics 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "0c56c6022ba22aedbaa7d231be545778becbe1c7aceda4c82ba2f2084dd4c723"
@@ -1115,6 +1116,7 @@ dependencies = [
 "checksum rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "c5f5376ea5e30ce23c03eb77cbe4962b988deead10910c372b226388b594c084"
 "checksum rustls 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)" = "fcfb2a577b14dca9caf13e6c6aa86d61158aa677347fbc155e5a1dac0f3b718f"
 "checksum rusttype 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c3c64ffc93b0cc5a6f5e5e84da2a4082b0271e0a1dd76e821bdac570bda7797e"
+"checksum screeps-api 0.0.1 (git+https://github.com/daboross/rust-screeps-api.git)" = "<none>"
 "checksum semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)" = "d4f410fedcf71af0345d7607d246e7ad15faaadd49d240ee3b24e5dc21a820ac"
 "checksum serde 0.7.15 (registry+https://github.com/rust-lang/crates.io-index)" = "1b0e0732aa8ec4267f61815a396a942ba3525062e3bd5520aa8419927cfc0a92"
 "checksum serde 0.8.23 (registry+https://github.com/rust-lang/crates.io-index)" = "9dad3f759919b92c3068c696c15c3d17238234498bbdcc80f2c469606f948ac8"
