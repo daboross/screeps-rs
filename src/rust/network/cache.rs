@@ -9,9 +9,9 @@ use super::request::Request;
 #[derive(Copy, Clone, Debug)]
 struct TimeoutValue<T> {
     /// T retrieved, time it was retrieved.
-    value: Option<(T, time::Tm)>,
+    value: Option<(T, time::Timespec)>,
     /// Last call made to server, set to None when value is received or when error is.
-    last_send: Option<time::Tm>,
+    last_send: Option<time::Timespec>,
 }
 
 impl<T> Default for TimeoutValue<T> {
@@ -28,7 +28,7 @@ impl<T> TimeoutValue<T> {
         self.last_send = None;
         match result {
             Ok(v) => {
-                self.value = Some((v, time::now_utc()));
+                self.value = Some((v, time::get_time()));
                 Ok(())
             }
             Err(e) => Err(e),
@@ -40,7 +40,7 @@ impl<T> TimeoutValue<T> {
     ///
     /// If cache_for is None, values will be held indefinitely without re-requesting.
     fn should_request(&self, cache_for: Option<Duration>, timeout_for_request: Duration) -> bool {
-        let now = time::now_utc();
+        let now = time::get_time();
 
         match self.value {
             Some((_, last_request)) => {
@@ -68,7 +68,7 @@ impl<T> TimeoutValue<T> {
     }
 
     fn requested(&mut self) {
-        self.last_send = Some(time::now_utc());
+        self.last_send = Some(time::get_time());
     }
 
     /// Gets the value if there is any. This is independent of whether or not we should make a new request.
