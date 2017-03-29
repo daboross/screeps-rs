@@ -108,8 +108,7 @@ fn login_screen(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Op
         }
     }
 
-    let AppCell { ref mut ui, ref display, ref mut image_map, ref mut ids, ref mut renderer, ref mut net_cache, .. } =
-        *app;
+    let AppCell { ref mut ui, ref display, ref mut ids, .. } = *app;
 
     use conrod::widget::text_box::Event as TextBoxEvent;
 
@@ -280,10 +279,8 @@ fn login_screen(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Op
     }
 }
 
-fn main_screen<'a>(app: &'a mut AppCell,
-                       state: &'a mut MainScreenState,
-                       update: &'a mut Option<GraphicsState>) {
-    let AppCell { ref mut ui, ref mut net_cache, ref ids, ref display, .. } = *app;
+fn main_screen<'a>(app: &'a mut AppCell, state: &'a mut MainScreenState, update: &'a mut Option<GraphicsState>) {
+    let AppCell { ref mut ui, ref mut net_cache, ref ids, .. } = *app;
     let body = Canvas::new()
         .color(color::DARK_CHARCOAL)
         .border(5.0)

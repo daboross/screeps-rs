@@ -67,7 +67,8 @@ impl<'a, 'b: 'a> AppCell<'a, 'b> {
                 image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
                 ids: &'a mut ui::Ids,
                 renderer: &'a mut conrod::backend::glium::Renderer,
-                net_cache: &'a mut NetCache) -> Self {
+                net_cache: &'a mut NetCache)
+                -> Self {
 
         AppCell {
             ui: cell,
