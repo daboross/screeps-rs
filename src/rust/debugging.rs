@@ -111,15 +111,20 @@ impl<T, E> FailureUnwrapDebug for Result<T, E>
     }
 }
 
-pub fn setup_logger() {
+pub fn setup_logger(verbose: bool) {
+    let log_level = if verbose {
+        log::LogLevelFilter::Trace
+    } else {
+        log::LogLevelFilter::Info
+    };
     let logger_config = fern::DispatchConfig {
         format: Box::new(|msg: &str, level: &log::LogLevel, _location: &log::LogLocation| {
             let now = ::time::now();
             format!("[{}][{}] {}", now.strftime("%H:%M:%S").unwrap(), level, msg)
         }),
         output: vec![fern::OutputConfig::stdout()],
-        level: log::LogLevelFilter::Trace,
+        level: log_level,
     };
 
-    fern::init_global_logger(logger_config, log::LogLevelFilter::Info).expect("failed to initialize global logger.");
+    fern::init_global_logger(logger_config, log_level).expect("failed to initialize global logger.");
 }

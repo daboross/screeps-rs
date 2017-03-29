@@ -26,8 +26,8 @@ use glue::AppCell;
 use ui::Event;
 
 
-pub fn main() {
-    debugging::setup_logger();
+pub fn main(verbose_logging: bool) {
+    debugging::setup_logger(verbose_logging);
 
     // Create window.
     let display = glutin::WindowBuilder::new()
@@ -50,6 +50,8 @@ fn main_window_loop(mut app: App) {
     let mut events = ui::EventLoop::new(&app.display);
 
     let mut state = ui::GraphicsState::login_screen();
+
+    debug!("[lib]\tStarting event loop.");
 
     loop {
         if let ui::GraphicsState::Exit = state {

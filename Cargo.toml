@@ -31,6 +31,7 @@ screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git" }
 time = "0.1"
 log = "0.3"
 fern = "0.3"
+clap = "2.22"
 
 [dependencies.conrod]
 # waiting on my finishing https://github.com/PistonDevelopers/conrod/pull/964
