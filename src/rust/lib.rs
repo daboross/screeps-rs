@@ -78,7 +78,7 @@ fn main_window_loop(mut app: App) {
                     glutin::Event::KeyboardInput(_, _, Some(glutin::VirtualKeyCode::Escape)) |
                     glutin::Event::Closed => return,
                     // glutin::Event::Focused(true) |
-                    glutin::Event::Refresh => {
+                    glutin::Event::Refresh | glutin::Event::Awakened => {
                         app.ui.needs_redraw();
                         events.needs_update();
                     }
