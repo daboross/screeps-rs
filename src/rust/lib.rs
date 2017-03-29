@@ -14,16 +14,14 @@ extern crate fern;
 extern crate log;
 extern crate time;
 
+pub mod app;
 pub mod debugging;
-pub mod ui;
 pub mod network;
-pub mod glue;
 
 use debugging::{FailureUnwrap, FailStage};
 use glium::{DisplayBuild, Surface};
-pub use glue::App;
-use glue::AppCell;
-use ui::Event;
+pub use app::App;
+use app::{AppCell, Event};
 
 
 pub fn main(verbose_logging: bool) {
@@ -47,14 +45,14 @@ pub fn main(verbose_logging: bool) {
 }
 
 fn main_window_loop(mut app: App) {
-    let mut events = ui::EventLoop::new(&app.display);
+    let mut events = app::EventLoop::new(&app.display);
 
-    let mut state = ui::GraphicsState::login_screen();
+    let mut state = app::GraphicsState::login_screen();
 
     debug!("[lib]\tStarting event loop.");
 
     loop {
-        if let ui::GraphicsState::Exit = state {
+        if let app::GraphicsState::Exit = state {
             info!("exiting.");
             break;
         }
@@ -101,7 +99,7 @@ fn main_window_loop(mut app: App) {
                     let mut cell = AppCell::cell(&mut ui_cell, display, image_map, ids, renderer, net_cache);
 
                     // Create main screen.
-                    ui::create(&mut cell, &mut state);
+                    app::create_ui(&mut cell, &mut state);
                 }
 
                 // Render the `Ui` and then display it on the screen.

@@ -1,16 +1,14 @@
-use std::default::Default;
-
 use conrod::{self, color, Colorable, Labelable, Positionable, Sizeable, Widget, Borderable};
 use conrod::widget::*;
 
 use time;
-use screeps_api;
 
 use debugging::{FailureUnwrap, FailStage};
 use network::{self, NetworkRequests, Request};
-use glue::AppCell;
 
-const HEADER_HEIGHT: conrod::Scalar = 30.0;
+use super::super::AppCell;
+use super::{GraphicsState, frame, HEADER_HEIGHT};
+use super::room_view::RoomViewState;
 
 const LOGIN_WIDTH: conrod::Scalar = 300.0;
 const LOGIN_HEIGHT: conrod::Scalar = 200.0;
@@ -19,21 +17,7 @@ const LOGIN_PADDING: conrod::Scalar = 10.0;
 
 const LOGIN_LOWER_SECTION_HEIGHT: conrod::Scalar = (LOGIN_HEIGHT - HEADER_HEIGHT) / 3.0;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum MenuState {
-    Open,
-    Closed,
-}
-impl Default for MenuState {
-    fn default() -> Self { MenuState::Closed }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
-pub struct PanelStates {
-    left: MenuState,
-}
-
-// Note: username and password defaults are empty strings, and this makes sense.
+// Note: username and password defaults are empty strings.
 #[derive(Default)]
 pub struct LoginScreenState {
     network: Option<network::NetworkRequests>,
@@ -52,58 +36,17 @@ impl ::std::fmt::Debug for LoginScreenState {
     }
 }
 
-#[derive(Debug)]
-pub struct MainScreenState {
-    network: network::NetworkRequests,
-    panels: PanelStates,
-}
-
-#[derive(Debug)]
-pub enum GraphicsState {
-    LoginScreen(LoginScreenState),
-    MainScreen(MainScreenState),
-    Exit,
-}
-
-impl GraphicsState {
-    pub fn login_screen() -> Self { GraphicsState::LoginScreen(LoginScreenState::default()) }
-
-    pub fn main_screen(network: network::NetworkRequests) -> Self {
-        GraphicsState::MainScreen(MainScreenState {
-            panels: PanelStates::default(),
-            network: network,
-        })
-    }
-}
-
-pub fn create(app: &mut AppCell, state: &mut GraphicsState) {
-    let mut update = None;
-
-    match *state {
-        GraphicsState::LoginScreen(ref mut inner) => login_screen(app, inner, &mut update),
-        GraphicsState::MainScreen(ref mut inner) => main_screen(app, inner, &mut update),
-        GraphicsState::Exit => panic!("Should have exited."),
-    }
-
-    if let Some(inner) = update {
-        *state = inner;
-    }
-}
-
-fn login_screen(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Option<GraphicsState>) {
+pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Option<GraphicsState>) {
     if let Some(ref mut network) = state.network {
         app.net_cache.align(network);
     }
 
     if app.net_cache.login_state() == network::LoginState::LoggedIn {
         if let Some(network) = state.network.take() {
-            let mut new_state = MainScreenState {
-                network: network,
-                panels: PanelStates::default(),
-            };
+            let mut new_state = RoomViewState::new(network);
             let mut temp_secondary_update = None;
-            main_screen(app, &mut new_state, &mut temp_secondary_update);
-            *update = Some(temp_secondary_update.unwrap_or_else(|| GraphicsState::MainScreen(new_state)));
+            super::room_view::create_ui(app, &mut new_state, &mut temp_secondary_update);
+            *update = Some(temp_secondary_update.unwrap_or_else(|| GraphicsState::RoomView(new_state)));
             return;
         }
     }
@@ -276,137 +219,5 @@ fn login_screen(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Op
                 state.pending_since = Some(time::now_utc());
             }
         }
-    }
-}
-
-fn main_screen<'a>(app: &'a mut AppCell, state: &'a mut MainScreenState, update: &'a mut Option<GraphicsState>) {
-    let AppCell { ref mut ui, ref mut net_cache, ref ids, .. } = *app;
-    let body = Canvas::new()
-        .color(color::DARK_CHARCOAL)
-        .border(5.0)
-        .border_color(color::DARK_GREY);
-    frame(ui, ids, body);
-    left_panel_available(ui, ids, &mut state.panels, update);
-
-    {
-        let mut net = net_cache.align(&mut state.network);
-        if let Some(info) = net.my_info() {
-            Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))
-                // style
-                .font_size(ui.theme.font_size_small)
-                .right_justify()
-                .no_line_wrap()
-                // position
-                .mid_right_with_margin_on(ids.header, 10.0)
-                .set(ids.username_gcl_header, ui);
-        }
-    }
-}
-
-fn left_panel_available(ui: &mut conrod::UiCell,
-                        ids: &Ids,
-                        state: &mut PanelStates,
-                        update: &mut Option<GraphicsState>) {
-    let left_toggle_clicks = Button::new()
-        // style
-        .color(color::DARK_CHARCOAL)
-        .border(0.0)
-        .w_h(100.0, HEADER_HEIGHT)
-        // label
-        .label("Screeps")
-        .small_font(&ui)
-        .left_justify_label()
-        .label_color(color::WHITE)
-        // place
-        .parent(ids.header)
-        .top_left_of(ids.header)
-        .set(ids.left_panel_toggle, ui)
-        // now TimesClicked(u16)
-        .0;
-
-    // left panel
-    match state.left {
-        MenuState::Open => {
-            left_panel_panel_open(ui, ids, update);
-
-            if left_toggle_clicks % 2 == 1 ||
-               left_toggle_clicks == 0 && ui.global_input().current.mouse.buttons.pressed().next().is_some() &&
-               ui.global_input()
-                .current
-                .widget_capturing_mouse
-                .or_else(|| ui.global_input().current.widget_under_mouse)
-                .map(|capturing| {
-                    capturing != ids.left_panel_toggle &&
-                    !ui.widget_graph().does_recursive_edge_exist(ids.left_panel_canvas, capturing, |_| true) &&
-                    !ui.widget_graph().does_recursive_edge_exist(ids.left_panel_toggle, capturing, |_| true)
-                })
-                .unwrap_or(true) {
-
-                state.left = MenuState::Closed;
-            }
-        }
-        MenuState::Closed => {
-            if left_toggle_clicks % 2 == 1 {
-                state.left = MenuState::Open;
-            }
-        }
-    }
-}
-
-fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut Option<GraphicsState>) {
-    Canvas::new()
-        // style
-        .color(color::DARK_CHARCOAL)
-        .border(0.0)
-        .w_h(300.0, ui.window_dim()[1] - HEADER_HEIGHT)
-        // behavior
-        .scroll_kids_vertically()
-        // place
-        .floating(true)
-        .mid_left_of(ids.root)
-        .down_from(ids.left_panel_toggle, 0.0)
-        .set(ids.left_panel_canvas, ui);
-}
-
-fn frame(ui: &mut conrod::UiCell, ids: &Ids, body: Canvas) {
-    let header = Canvas::new()
-        .color(color::DARK_CHARCOAL)
-        .border(0.0)
-        .length(HEADER_HEIGHT);
-
-    Canvas::new()
-        .border(0.0)
-        .flow_down(&[(ids.header, header), (ids.body, body)])
-        .set(ids.root, ui);
-}
-
-widget_ids! {
-    pub struct Ids {
-        // global
-        root,
-        header,
-        body,
-
-        // Main screen
-        left_panel_toggle,
-        left_panel_canvas,
-
-        username_gcl_header,
-
-        // Login screen
-        login_canvas,
-        login_header_canvas,
-
-        login_username_canvas,
-        login_username_textbox,
-        login_username_label,
-
-        login_password_canvas,
-        login_password_textbox,
-        login_password_label,
-
-        login_submit_canvas,
-        login_exit_button,
-        login_submit_button,
     }
 }

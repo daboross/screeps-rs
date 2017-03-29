@@ -1,3 +1,9 @@
+pub mod events;
+pub mod ui;
+
+pub use self::events::{EventLoop, Event};
+pub use self::ui::{GraphicsState, create_ui};
+
 use std::marker::PhantomData;
 
 use conrod;
@@ -5,9 +11,6 @@ use glium;
 
 use debugging::{FailureUnwrap, FailureUnwrapDebug, FailStage};
 use network::NetCache;
-
-use ui;
-
 
 pub struct App {
     pub ui: conrod::Ui,
