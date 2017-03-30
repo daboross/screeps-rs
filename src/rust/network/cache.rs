@@ -67,10 +67,14 @@ impl<T> TimeoutValue<T> {
         }
     }
 
-    fn requested(&mut self) { self.last_send = Some(time::get_time()); }
+    fn requested(&mut self) {
+        self.last_send = Some(time::get_time());
+    }
 
     /// Gets the value if there is any. This is independent of whether or not we should make a new request.
-    fn get(&self) -> Option<&T> { self.value.as_ref().map(|tuple| &tuple.0) }
+    fn get(&self) -> Option<&T> {
+        self.value.as_ref().map(|tuple| &tuple.0)
+    }
 }
 
 #[derive(Default)]
@@ -91,10 +95,14 @@ pub struct CallableCache<'a> {
 
 impl<'a> ops::Deref for CallableCache<'a> {
     type Target = NetCache;
-    fn deref(&self) -> &NetCache { &self.inner }
+    fn deref(&self) -> &NetCache {
+        &self.inner
+    }
 }
 impl<'a> ops::DerefMut for CallableCache<'a> {
-    fn deref_mut(&mut self) -> &mut NetCache { &mut self.inner }
+    fn deref_mut(&mut self) -> &mut NetCache {
+        &mut self.inner
+    }
 }
 
 

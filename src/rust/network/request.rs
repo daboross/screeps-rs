@@ -26,7 +26,9 @@ impl<'a> Request<'a> {
         }
     }
 
-    pub fn my_info() -> Request<'static> { Request::MyInfo }
+    pub fn my_info() -> Request<'static> {
+        Request::MyInfo
+    }
 
     pub fn into_static(self) -> Request<'static> {
         match self {

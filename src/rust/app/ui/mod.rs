@@ -24,7 +24,9 @@ pub struct PanelStates {
 }
 
 impl Default for MenuState {
-    fn default() -> Self { MenuState::Closed }
+    fn default() -> Self {
+        MenuState::Closed
+    }
 }
 
 #[derive(Debug)]
@@ -35,7 +37,9 @@ pub enum GraphicsState {
 }
 
 impl GraphicsState {
-    pub fn login_screen() -> Self { GraphicsState::LoginScreen(LoginScreenState::default()) }
+    pub fn login_screen() -> Self {
+        GraphicsState::LoginScreen(LoginScreenState::default())
+    }
 }
 
 pub fn create_ui(app: &mut AppCell, state: &mut GraphicsState) {

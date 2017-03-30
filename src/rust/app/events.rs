@@ -28,9 +28,13 @@ impl<'a> EventLoop<'a> {
         }
     }
 
-    fn poll_event(&mut self) -> Option<glutin::Event> { self.display.get_window().and_then(|w| w.poll_events().next()) }
+    fn poll_event(&mut self) -> Option<glutin::Event> {
+        self.display.get_window().and_then(|w| w.poll_events().next())
+    }
 
-    fn wait_event(&mut self) -> Option<glutin::Event> { self.display.get_window().and_then(|w| w.wait_events().next()) }
+    fn wait_event(&mut self) -> Option<glutin::Event> {
+        self.display.get_window().and_then(|w| w.wait_events().next())
+    }
 
     /// Gets the next event. If there are no glutin events available, this either returns `Event::UpdateUi` or waits
     /// for an event depending on if the UI needs updating
@@ -68,7 +72,9 @@ impl<'a> EventLoop<'a> {
     ///
     /// This is primarily used on the occasion that some part of the `Ui` is still animating and
     /// requires further updates to do so.
-    pub fn needs_update(&mut self) { self.ui_needs_update = 3; }
+    pub fn needs_update(&mut self) {
+        self.ui_needs_update = 3;
+    }
 }
 
 /// Event returned from EventLoop.

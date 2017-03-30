@@ -1,6 +1,6 @@
 max_width = 120
 ideal_width = 110
-fn_single_line = true
+fn_single_line = false
 fn_args_paren_newline = false
 report_fixme = "unnumbered"
 use_try_shorthand = true
