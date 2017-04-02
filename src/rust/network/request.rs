@@ -2,8 +2,6 @@ use std::borrow::Cow;
 
 use screeps_api;
 
-use super::NetworkEvent;
-
 use self::Request::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -59,4 +57,14 @@ impl<'a> Request<'a> {
             }
         }
     }
+}
+
+
+#[derive(Debug)]
+pub enum NetworkEvent {
+    Login {
+        username_requested: String,
+        result: screeps_api::Result<()>,
+    },
+    MyInfo(screeps_api::Result<screeps_api::MyInfo>),
 }

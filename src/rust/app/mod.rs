@@ -18,7 +18,6 @@ pub struct App {
     pub image_map: conrod::image::Map<glium::texture::Texture2d>,
     pub ids: ui::Ids,
     pub renderer: conrod::backend::glium::Renderer,
-    /// TODO: Cache of stuff retrieved from the server.
     pub net_cache: NetCache,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
@@ -31,7 +30,6 @@ pub struct AppCell<'a, 'b: 'a> {
     pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
     pub ids: &'a mut ui::Ids,
     pub renderer: &'a mut conrod::backend::glium::Renderer,
-    /// TODO: Cache of stuff retrieved from the server.
     pub net_cache: &'a mut NetCache,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]

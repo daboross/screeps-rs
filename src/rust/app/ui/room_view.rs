@@ -11,32 +11,38 @@ use super::super::AppCell;
 use super::{GraphicsState, PanelStates, frame, left_panel_available};
 
 #[derive(Debug)]
-pub struct RoomViewState {
-    network: network::NetworkRequests,
+pub struct RoomViewState<T: network::ScreepsConnection = network::ThreadedHandler> {
+    network: T,
     panels: PanelStates,
 }
 
-impl RoomViewState {
-    pub fn new(network: network::NetworkRequests) -> Self {
+impl<T: network::ScreepsConnection> RoomViewState<T> {
+    pub fn new(network: T) -> Self {
         RoomViewState {
             network: network,
             panels: PanelStates::default(),
         }
     }
+
+    pub fn into_network(self) -> T {
+        self.network
+    }
 }
 
-pub fn create_ui(app: &mut AppCell, state: &mut RoomViewState, update: &mut Option<GraphicsState>) {
+pub fn create_ui(app: &mut AppCell,
+                 state: &mut RoomViewState,
+                 update: &mut Option<GraphicsState>)
+                 -> Result<(), network::NotLoggedIn> {
     let AppCell { ref mut ui, ref mut net_cache, ref ids, .. } = *app;
     let body = Canvas::new()
-        .color(color::DARK_CHARCOAL)
-        .border(5.0)
-        .border_color(color::DARK_GREY);
+        .color(color::BLACK)
+        .border(0.0);
     frame(ui, ids, body);
     left_panel_available(ui, ids, &mut state.panels, update);
 
     {
         let mut net = net_cache.align(&mut state.network);
-        if let Some(info) = net.my_info() {
+        if let Some(info) = net.my_info()? {
             Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))
                 // style
                 .font_size(ui.theme.font_size_small)
@@ -47,4 +53,6 @@ pub fn create_ui(app: &mut AppCell, state: &mut RoomViewState, update: &mut Opti
                 .set(ids.username_gcl_header, ui);
         }
     }
+
+    Ok(())
 }

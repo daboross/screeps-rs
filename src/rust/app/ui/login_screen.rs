@@ -4,7 +4,7 @@ use conrod::widget::*;
 use time;
 
 use debugging::{FailureUnwrap, FailStage};
-use network::{self, NetworkRequests, Request};
+use network::{self, ScreepsConnection, Request};
 
 use super::super::AppCell;
 use super::{GraphicsState, frame, HEADER_HEIGHT};
@@ -17,13 +17,33 @@ const LOGIN_PADDING: conrod::Scalar = 10.0;
 
 const LOGIN_LOWER_SECTION_HEIGHT: conrod::Scalar = (LOGIN_HEIGHT - HEADER_HEIGHT) / 3.0;
 
-// Note: username and password defaults are empty strings.
-#[derive(Default)]
-pub struct LoginScreenState {
-    network: Option<network::NetworkRequests>,
+pub struct LoginScreenState<T: network::ScreepsConnection = network::ThreadedHandler> {
+    network: Option<T>,
     pending_since: Option<time::Tm>,
     username: String,
     password: String,
+}
+
+impl<T: network::ScreepsConnection> Default for LoginScreenState<T> {
+    fn default() -> Self {
+        LoginScreenState {
+            network: None,
+            pending_since: None,
+            // the UI username and password boxes are empty by default.
+            username: String::new(),
+            password: String::new(),
+        }
+    }
+}
+
+impl<T: network::ScreepsConnection> LoginScreenState<T> {
+    pub fn new(network: T) -> Self {
+        LoginScreenState { network: Some(network), ..LoginScreenState::default() }
+    }
+
+    pub fn into_network(self) -> Option<T> {
+        self.network
+    }
 }
 
 impl ::std::fmt::Debug for LoginScreenState {
@@ -31,7 +51,7 @@ impl ::std::fmt::Debug for LoginScreenState {
         fmt.debug_struct("LoginScreenState")
             .field("network", &self.network)
             .field("username", &self.username)
-            .field("password", &"redacted")
+            .field("password", &"<redacted>")
             .finish()
     }
 }
@@ -43,9 +63,11 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
 
     if app.net_cache.login_state() == network::LoginState::LoggedIn {
         if let Some(network) = state.network.take() {
+            debug!("Logged in, moving out.");
             let mut new_state = RoomViewState::new(network);
             let mut temp_secondary_update = None;
-            super::room_view::create_ui(app, &mut new_state, &mut temp_secondary_update);
+            super::room_view::create_ui(app, &mut new_state, &mut temp_secondary_update)
+                .expect("Just logged in, yet login error occurs?");
             *update = Some(temp_secondary_update.unwrap_or_else(|| GraphicsState::RoomView(new_state)));
             return;
         }
@@ -208,13 +230,16 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
               state.password.len() > 0 {
         match state.network {
             Some(ref mut net) => {
-                net.send(Request::login(&*state.username, &*state.password));
+                net.send(Request::login(&*state.username, &*state.password))
+                    .expect("Cannot receive login error for login request.");
             }
             None => {
                 let proxy = display.get_window()
                     .uw(FailStage::Runtime, "could not find window, headless?")
                     .create_window_proxy();
-                let network = NetworkRequests::new(proxy, state.username.clone(), state.password.clone());
+                let mut network = network::ThreadedHandler::new(proxy);
+                network.send(network::Request::login(&*state.username, &*state.password))
+                    .expect("Cannot receive login error for login request.");
                 state.network = Some(network);
                 state.pending_since = Some(time::now_utc());
             }

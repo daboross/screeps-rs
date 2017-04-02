@@ -1,10 +1,10 @@
 use std::ops;
+use std::borrow::Cow;
 
 use screeps_api;
 use time::{self, Duration};
 
-use super::{NetworkEvent, NetworkRequests};
-use super::request::Request;
+use super::{Request, NetworkEvent, ScreepsConnection, NotLoggedIn};
 
 #[derive(Copy, Clone, Debug)]
 struct TimeoutValue<T> {
@@ -77,36 +77,38 @@ impl<T> TimeoutValue<T> {
     }
 }
 
-#[derive(Default)]
-struct InnerCache {
+pub struct NetCache {
+    last_cache_clear: time::Tm,
     login: TimeoutValue<()>,
     my_info: TimeoutValue<screeps_api::MyInfo>,
 }
 
-pub struct NetCache {
-    last_cache_clear: time::Tm,
-    cache: InnerCache,
-}
-
-pub struct CallableCache<'a> {
+pub struct ActiveCache<'a, T: ScreepsConnection + 'a> {
     inner: &'a mut NetCache,
-    handler: &'a mut NetworkRequests,
+    handler: &'a mut T,
 }
 
-impl<'a> ops::Deref for CallableCache<'a> {
+impl<'a, T: ScreepsConnection> ops::Deref for ActiveCache<'a, T> {
     type Target = NetCache;
     fn deref(&self) -> &NetCache {
         &self.inner
     }
 }
-impl<'a> ops::DerefMut for CallableCache<'a> {
+impl<'a, T: ScreepsConnection> ops::DerefMut for ActiveCache<'a, T> {
     fn deref_mut(&mut self) -> &mut NetCache {
         &mut self.inner
     }
 }
 
+impl NetCache {
+    pub fn new() -> Self {
+        NetCache {
+            last_cache_clear: time::now_utc(),
+            login: TimeoutValue::default(),
+            my_info: TimeoutValue::default(),
+        }
+    }
 
-impl InnerCache {
     fn event(&mut self, event: NetworkEvent) {
         match event {
             NetworkEvent::Login { username_requested: _, result } => {
@@ -121,21 +123,12 @@ impl InnerCache {
             }
         }
     }
-}
-
-impl NetCache {
-    pub fn new() -> Self {
-        NetCache {
-            last_cache_clear: time::now_utc(),
-            cache: InnerCache::default(),
-        }
-    }
 
     pub fn login_state(&self) -> LoginState {
-        match self.cache.login.get() {
+        match self.login.get() {
             Some(_) => LoginState::LoggedIn,
             None => {
-                match self.cache.login.should_request(None, Duration::seconds(90)) {
+                match self.login.should_request(None, Duration::seconds(90)) {
                     false => LoginState::TryingToLogin,
                     true => LoginState::NotLoggedIn,
                 }
@@ -143,25 +136,36 @@ impl NetCache {
         }
     }
 
-    pub fn align<'a>(&'a mut self, handler: &'a mut NetworkRequests) -> CallableCache<'a> {
+    /// TODO: this method should return 'failure events' which the UI can then cache and add to a notification list.
+    pub fn align<'a, T: ScreepsConnection>(&'a mut self, handler: &'a mut T) -> ActiveCache<'a, T> {
         while let Some(evt) = handler.poll() {
-            self.cache.event(evt);
+            debug!("[cache] Got event {:?}", evt);
+            self.event(evt);
         }
 
-        CallableCache {
+        ActiveCache {
             inner: self,
             handler: handler,
         }
     }
 }
 
-impl<'a> CallableCache<'a> {
-    pub fn my_info(&mut self) -> Option<&screeps_api::MyInfo> {
-        if self.cache.my_info.should_request(Some(Duration::minutes(10)), Duration::seconds(90)) {
-            self.handler.send(Request::MyInfo);
-            self.cache.my_info.requested();
+impl<'a, T: ScreepsConnection> ActiveCache<'a, T> {
+    pub fn login<'b, U, P>(&mut self, username: U, password: P)
+        where U: Into<Cow<'b, str>>,
+              P: Into<Cow<'b, str>>
+    {
+        self.handler
+            .send(Request::login(username, password))
+            .expect("expected login call not to result in not-logged-in error")
+    }
+
+    pub fn my_info(&mut self) -> Result<Option<&screeps_api::MyInfo>, NotLoggedIn> {
+        if self.my_info.should_request(Some(Duration::minutes(10)), Duration::seconds(90)) {
+            self.handler.send(Request::MyInfo)?;
+            self.my_info.requested();
         }
-        self.cache.my_info.get()
+        Ok(self.my_info.get())
     }
 }
 

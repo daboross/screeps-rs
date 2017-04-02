@@ -2,11 +2,14 @@ mod login_screen;
 mod room_view;
 
 use std::default::Default;
+use std::mem;
 
 use conrod::{self, color, Colorable, Labelable, Positionable, Sizeable, Widget, Borderable};
 use conrod::widget::*;
 
 use super::AppCell;
+use network;
+
 pub use self::login_screen::LoginScreenState;
 pub use self::room_view::RoomViewState;
 
@@ -45,14 +48,34 @@ impl GraphicsState {
 pub fn create_ui(app: &mut AppCell, state: &mut GraphicsState) {
     let mut update = None;
 
-    match *state {
-        GraphicsState::LoginScreen(ref mut inner) => login_screen::create_ui(app, inner, &mut update),
+    let result = match *state {
+        GraphicsState::LoginScreen(ref mut inner) => {
+            login_screen::create_ui(app, inner, &mut update);
+            Ok(())
+        }
         GraphicsState::RoomView(ref mut inner) => room_view::create_ui(app, inner, &mut update),
         GraphicsState::Exit => panic!("Should have exited."),
-    }
+    };
 
     if let Some(inner) = update {
         *state = inner;
+    }
+
+    match result {
+        Ok(()) => (),
+        Err(network::NotLoggedIn) => {
+            let mut temp_state = GraphicsState::login_screen();
+            // leave the UI in a reasonable state if we error out in the next few lines before re-swapping.
+            mem::swap(state, &mut temp_state);
+            let new_state = match temp_state {
+                GraphicsState::LoginScreen(state) => GraphicsState::LoginScreen(state),
+                GraphicsState::RoomView(state) => {
+                    GraphicsState::LoginScreen(LoginScreenState::new(state.into_network()))
+                }
+                GraphicsState::Exit => GraphicsState::Exit,
+            };
+            *state = new_state;
+        }
     }
 }
 
