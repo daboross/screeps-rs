@@ -10,7 +10,7 @@ use super::{Request, NetworkEvent, ScreepsConnection, NotLoggedIn};
 struct TimeoutValue<T> {
     /// T retrieved, time it was retrieved.
     value: Option<(T, time::Timespec)>,
-    /// Last call made to server, set to None when value is received or when error is.
+    /// Last call made to server, set to None when a value or error is received.
     last_send: Option<time::Timespec>,
 }
 

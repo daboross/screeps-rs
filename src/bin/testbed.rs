@@ -12,7 +12,7 @@ fn main() {
             .short("v")
             .long("verbose")
             .multiple(true)
-            .help(""))
+            .help("enables verbose logging"))
         .get_matches();
 
     conrod_testing::main(matches.is_present("verbose"));
