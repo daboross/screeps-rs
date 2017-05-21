@@ -13,6 +13,7 @@ extern crate fern;
 #[macro_use]
 extern crate log;
 extern crate time;
+extern crate chrono;
 
 pub mod app;
 pub mod debugging;

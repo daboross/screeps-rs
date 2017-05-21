@@ -1,7 +1,7 @@
-use fern;
-
-use log;
 use std::fmt::{self, Display, Debug};
+use std::io;
+
+use {fern, chrono, log};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum FailStage {
@@ -112,19 +112,22 @@ impl<T, E> FailureUnwrapDebug for Result<T, E>
 }
 
 pub fn setup_logger(verbose: bool) {
-    let log_level = if verbose {
-        log::LogLevelFilter::Trace
-    } else {
-        log::LogLevelFilter::Info
-    };
-    let logger_config = fern::DispatchConfig {
-        format: Box::new(|msg: &str, level: &log::LogLevel, _location: &log::LogLocation| {
-            let now = ::time::now();
-            format!("[{}][{}] {}", now.strftime("%H:%M:%S").unwrap(), level, msg)
-        }),
-        output: vec![fern::OutputConfig::stdout()],
-        level: log_level,
-    };
+    fern::Dispatch::new()
+        .level(if verbose {
+            log::LogLevelFilter::Trace
+        } else {
+            log::LogLevelFilter::Info
+        })
+        .format(|out, msg, record| {
+            let now = chrono::Local::now();
 
-    fern::init_global_logger(logger_config, log_level).expect("failed to initialize global logger.");
+            out.finish(format_args!("[{}][{}] {}: {}",
+                                    now.format("%H:%M:%S"),
+                                    record.level(),
+                                    record.target(),
+                                    msg));
+        })
+        .chain(io::stdout())
+        .apply()
+        .unwrap_or_else(|_| warn!("Logging initialization failed: a global logger was already set!"));
 }
