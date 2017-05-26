@@ -1,5 +1,6 @@
 use std::ops;
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 use screeps_api;
 use time::{self, Duration};
@@ -78,9 +79,11 @@ impl<T> TimeoutValue<T> {
 }
 
 pub struct NetCache {
+    /// TODO: use this
     last_cache_clear: time::Tm,
     login: TimeoutValue<()>,
     my_info: TimeoutValue<screeps_api::MyInfo>,
+    terrain: HashMap<screeps_api::RoomName, TimeoutValue<screeps_api::endpoints::room_terrain::TerrainGrid>>,
 }
 
 pub struct ActiveCache<'a, T: ScreepsConnection + 'a> {
@@ -106,19 +109,28 @@ impl NetCache {
             last_cache_clear: time::now_utc(),
             login: TimeoutValue::default(),
             my_info: TimeoutValue::default(),
+            terrain: HashMap::new(),
         }
     }
 
     fn event(&mut self, event: NetworkEvent) {
         match event {
-            NetworkEvent::Login { username_requested: _, result } => {
+            NetworkEvent::Login { username: _, result } => {
                 if let Err(e) = self.login.event(result) {
                     error!("login failed: {}", e);
                 }
             }
-            NetworkEvent::MyInfo(result) => {
+            NetworkEvent::MyInfo { result } => {
                 if let Err(e) = self.my_info.event(result) {
                     error!("my_info failed: {}", e);
+                }
+            }
+            NetworkEvent::RoomTerrain { room_name, result } => {
+                if let Err(e) = self.terrain
+                    .entry(room_name)
+                    .or_insert_with(TimeoutValue::default)
+                    .event(result.map(|terrain| terrain.terrain)) {
+                    error!("room_terrain for {} failed: {}", room_name, e);
                 }
             }
         }
@@ -166,6 +178,19 @@ impl<'a, T: ScreepsConnection> ActiveCache<'a, T> {
             self.my_info.requested();
         }
         Ok(self.my_info.get())
+    }
+
+    pub fn room_terrain(&mut self,
+                        room_name: screeps_api::RoomName)
+                        -> Result<Option<&screeps_api::endpoints::room_terrain::TerrainGrid>, NotLoggedIn> {
+        let holder = self.inner.terrain.entry(room_name).or_insert_with(TimeoutValue::default);
+
+        if holder.should_request(Some(Duration::minutes(360)), Duration::seconds(30)) {
+            self.handler.send(Request::room_terrain(room_name))?;
+            holder.requested();
+        }
+
+        Ok(holder.get())
     }
 }
 

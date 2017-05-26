@@ -11,6 +11,7 @@ pub enum Request<'a> {
         password: Cow<'a, str>,
     },
     MyInfo,
+    RoomTerrain { room_name: screeps_api::RoomName },
 }
 
 impl<'a> Request<'a> {
@@ -24,10 +25,6 @@ impl<'a> Request<'a> {
         }
     }
 
-    pub fn my_info() -> Request<'static> {
-        Request::MyInfo
-    }
-
     pub fn into_static(self) -> Request<'static> {
         match self {
             Login { username, password } => {
@@ -37,6 +34,7 @@ impl<'a> Request<'a> {
                 }
             }
             MyInfo => MyInfo,
+            RoomTerrain { room_name } => RoomTerrain { room_name: room_name },
         }
     }
 
@@ -47,24 +45,44 @@ impl<'a> Request<'a> {
             Login { username, password } => {
                 let result = client.login(username.as_ref(), password);
                 NetworkEvent::Login {
-                    username_requested: username.into_owned(),
+                    username: username.into_owned(),
                     result: result,
                 }
             }
             MyInfo => {
                 let result = client.my_info();
-                NetworkEvent::MyInfo(result)
+                NetworkEvent::MyInfo { result: result }
+            }
+            RoomTerrain { room_name } => {
+                let result = client.room_terrain(room_name.to_string());
+                NetworkEvent::RoomTerrain {
+                    room_name: room_name,
+                    result: result,
+                }
             }
         }
     }
 }
 
+impl Request<'static> {
+    pub fn my_info() -> Self {
+        Request::MyInfo
+    }
+
+    pub fn room_terrain(room_name: screeps_api::RoomName) -> Self {
+        Request::RoomTerrain { room_name: room_name }
+    }
+}
 
 #[derive(Debug)]
 pub enum NetworkEvent {
     Login {
-        username_requested: String,
+        username: String,
         result: screeps_api::Result<()>,
     },
-    MyInfo(screeps_api::Result<screeps_api::MyInfo>),
+    MyInfo { result: screeps_api::Result<screeps_api::MyInfo>, },
+    RoomTerrain {
+        room_name: screeps_api::RoomName,
+        result: screeps_api::Result<screeps_api::RoomTerrain>,
+    },
 }

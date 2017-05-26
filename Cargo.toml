@@ -29,7 +29,7 @@ rusttype = "0.2"
 # Networking
 hyper = "0.10"
 hyper-rustls = "0.6"
-screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git", tag = "screeps-api-0.1.0" }
+screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git" }
 # Logging
 time = "0.1"
 chrono = "0.3"

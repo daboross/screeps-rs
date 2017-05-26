@@ -168,6 +168,8 @@ widget_ids! {
         left_panel_canvas,
 
         username_gcl_header,
+        rows[],
+        tiles[],
 
         // Login screen
         login_canvas,
