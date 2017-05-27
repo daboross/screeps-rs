@@ -8,7 +8,9 @@ Screeps is a true programming MMO where users uploading JavaScript code to power
 
 ![terrain rendering screenshot][terrain-image]
 
-[`screeps-rs`] is built with two main projects: [`rust-screeps-api`] implements networking and parsing of network results, and this repository implements a UI on top of that.
+This client is built on two main projects:
+- [`rust-screeps-api`] implements networking and parsing of network results
+- and [`screeps-rs`] (this repository) implements rendering and a UI on top of that
 
 [`screeps-rs`] can:
 
