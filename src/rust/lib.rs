@@ -110,13 +110,15 @@ fn main_window_loop(mut app: App) {
 
                 // Render the `Ui` and then display it on the screen.
                 if let Some(primitives) = app.ui.draw_if_changed() {
+                    use app::ui::BACKGROUND_RGB;
+
                     match custom_draw {
                         Some(d) => app.renderer.fill(&app.display, d.merged_walker(primitives), &app.image_map),
                         None => app.renderer.fill(&app.display, primitives, &app.image_map),
                     }
 
                     let mut target = app.display.draw();
-                    target.clear_color(0.0, 0.0, 0.0, 1.0);
+                    target.clear_color(BACKGROUND_RGB[0], BACKGROUND_RGB[1], BACKGROUND_RGB[2], 1.0);
                     app.renderer
                         .draw(&app.display, &mut target, &app.image_map)
                         .uw(FailStage::Runtime, "Error drawing GUI to display");

@@ -17,6 +17,9 @@ pub use self::custom::CustomDraw;
 
 const HEADER_HEIGHT: conrod::Scalar = 30.0;
 
+pub const BACKGROUND_RGB: [f32; 3] = [0.0625, 0.46875, 0.3125];
+pub const BACKGROUND: conrod::Color = conrod::Color::Rgba(BACKGROUND_RGB[0], BACKGROUND_RGB[1], BACKGROUND_RGB[2], 1.0);
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MenuState {
     Open,
@@ -153,6 +156,7 @@ fn frame(ui: &mut conrod::UiCell, ids: &Ids, body_id: Id, body: Canvas) {
         .length(HEADER_HEIGHT);
 
     Canvas::new()
+        .color(BACKGROUND)
         .border(0.0)
         .flow_down(&[(ids.header, header), (body_id, body)])
         .set(ids.root, ui);
