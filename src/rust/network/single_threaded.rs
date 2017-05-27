@@ -148,6 +148,7 @@ impl ThreadedHandler {
     fn run(self) {
         let ThreadedHandler { mut client, recv, send, window } = self;
         loop {
+            debug!("waiting for a request.");
             match recv.recv() {
                 Ok(request) => {
                     let result = request.exec_with(&mut client);

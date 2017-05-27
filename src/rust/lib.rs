@@ -50,7 +50,7 @@ fn main_window_loop(mut app: App) {
 
     let mut state = app::GraphicsState::login_screen();
 
-    debug!("[lib]\tStarting event loop.");
+    debug!("Starting event loop.");
 
     loop {
         if let app::GraphicsState::Exit = state {
@@ -62,11 +62,11 @@ fn main_window_loop(mut app: App) {
 
         match next_event {
             Event::Glutin(event) => {
-                debug!("[lib]\tGlutin Event: {:?}", event);
+                debug!("Glutin Event: {:?}", event);
 
                 // Use the `winit` backend feature to convert the winit event to a conrod one.
                 if let Some(event) = conrod::backend::winit::convert(event.clone(), &app.display) {
-                    debug!("[lib]\tConrod Event: {:?}", event);
+                    debug!("Conrod Event: {:?}", event);
 
                     app.ui.handle_event(event);
                     events.needs_update();
@@ -85,7 +85,7 @@ fn main_window_loop(mut app: App) {
                 }
             }
             Event::UpdateUi => {
-                debug!("[lib]\tUpdateUI Event.");
+                debug!("UpdateUI Event.");
 
                 {
                     let App { ref mut ui,
@@ -97,6 +97,7 @@ fn main_window_loop(mut app: App) {
                               .. } = app;
 
                     let mut ui_cell = ui.set_widgets();
+
                     let mut cell = AppCell::cell(&mut ui_cell, display, image_map, ids, renderer, net_cache);
 
                     // Create main screen.
@@ -111,12 +112,12 @@ fn main_window_loop(mut app: App) {
                     target.clear_color(0.0, 0.0, 0.0, 1.0);
                     app.renderer
                         .draw(&app.display, &mut target, &app.image_map)
-                        .uw(FailStage::Runtime, "Failed to draw target to display");
-                    target.finish().uw(FailStage::Runtime, "Failed to finish target drawing");
+                        .uw(FailStage::Runtime, "Error drawing GUI to display");
+                    target.finish().expect("Frame shouldn't be finished yet.");
                 }
             }
             Event::None => {
-                error!("Warning: could not find any events.");
+                error!("Empty event cycle.");
             }
         }
     }
