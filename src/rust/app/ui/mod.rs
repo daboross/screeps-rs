@@ -1,5 +1,6 @@
 mod login_screen;
 mod room_view;
+mod custom;
 
 use std::default::Default;
 use std::mem;
@@ -12,6 +13,7 @@ use network;
 
 pub use self::login_screen::LoginScreenState;
 pub use self::room_view::RoomViewState;
+pub use self::custom::CustomDraw;
 
 const HEADER_HEIGHT: conrod::Scalar = 30.0;
 
@@ -144,7 +146,7 @@ fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut Optio
         .set(ids.left_panel_canvas, ui);
 }
 
-fn frame(ui: &mut conrod::UiCell, ids: &Ids, body: Canvas) {
+fn frame(ui: &mut conrod::UiCell, ids: &Ids, body_id: Id, body: Canvas) {
     let header = Canvas::new()
         .color(color::DARK_CHARCOAL)
         .border(0.0)
@@ -152,7 +154,7 @@ fn frame(ui: &mut conrod::UiCell, ids: &Ids, body: Canvas) {
 
     Canvas::new()
         .border(0.0)
-        .flow_down(&[(ids.header, header), (ids.body, body)])
+        .flow_down(&[(ids.header, header), (body_id, body)])
         .set(ids.root, ui);
 }
 
@@ -168,8 +170,7 @@ widget_ids! {
         left_panel_canvas,
 
         username_gcl_header,
-        rows[],
-        tiles[],
+        room_display,
 
         // Login screen
         login_canvas,

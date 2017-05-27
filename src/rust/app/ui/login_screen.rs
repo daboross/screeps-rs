@@ -80,7 +80,7 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
     let body = Canvas::new()
         .color(color::CHARCOAL)
         .border(0.0);
-    frame(ui, ids, body);
+    frame(ui, ids, ids.body, body);
 
     let header_canvas = Canvas::new()
         // style
