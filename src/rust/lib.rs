@@ -32,9 +32,9 @@ pub fn main(verbose_logging: bool) {
     let display = glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
         .with_vsync()
-        .with_title("Screeps Conrod Client")
+        .with_title("SCRS Client")
         .build_glium()
-        .uw(FailStage::Startup, "Failed to create glutin window.");
+        .uw(FailStage::Startup, "Error creating window.");
 
     // Create UI and other components.
     let mut app = App::new(display);

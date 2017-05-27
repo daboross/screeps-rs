@@ -28,8 +28,8 @@ Eventually, this will be able to connect to both the [official server][screeps] 
 
 [`screeps-rs`] uses the `Akashi` font. It is included with permission from [Ten by Twenty][ten-by-twenty].
 
-[travis-image]: https://travis-ci.org/daboross/conrod-testing.svg?branch=master
-[travis-builds]: https://travis-ci.org/daboross/conrod-testing
+[travis-image]: https://travis-ci.org/daboross/screeps-rs.svg?branch=master
+[travis-builds]: https://travis-ci.org/daboross/screeps-rs
 [rust]: https://www.rust-lang.org/
 [conrod]: https://github.com/PistonDevelopers/conrod/
 [`rust-screeps-api`]: https://github.com/daboross/rust-screeps-api

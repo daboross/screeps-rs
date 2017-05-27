@@ -1,10 +1,10 @@
 [package]
-name = "conrod-testing"
+name = "screeps-rs"
 version = "0.1.0"
 authors = ["David Ross <daboross@daboross.net>"]
-description = "Personal testbed of conrod."
+description = "WIP native Screeps client using Rust and Conrod."
 
-repository = "https://github.com/daboross/conrod-testing"
+repository = "https://github.com/daboross/screeps-rs"
 
 readme = "README.md"
 
@@ -13,7 +13,6 @@ categories = ["games"]
 license = "MIT"
 
 [lib]
-name = "conrod_testing"
 path = "src/rust/lib.rs"
 
 [profile.release]
@@ -44,5 +43,5 @@ branch = "add-password-text-boxes"
 features = ["glium", "winit"]
 
 [[bin]]
-name = "testbed"
+name = "scrs"
 doc = false
