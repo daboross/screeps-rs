@@ -6,28 +6,28 @@ use screeps_api::RoomName;
 use screeps_api::endpoints::room_terrain::{TerrainGrid, TerrainType};
 
 #[derive(Clone, Debug)]
-pub enum CustomDrawType {
+pub enum AdditionalRenderType {
     Room(RoomName, TerrainGrid),
 }
 
 #[derive(Clone, Debug)]
-pub struct CustomDraw {
+pub struct AdditionalRender {
     pub replace: widget::Id,
-    pub draw_type: CustomDrawType,
+    pub draw_type: AdditionalRenderType,
     _phantom: PhantomData<()>,
 }
 
 pub struct MergedPrimitives<T: Sized> {
-    custom: Option<CustomDraw>,
+    custom: Option<AdditionalRender>,
     currently_replacing: Option<Box<Iterator<Item = Primitive<'static>>>>,
     walker: T,
 }
 
-impl CustomDraw {
+impl AdditionalRender {
     pub fn room(replace: widget::Id, name: RoomName, terrain: TerrainGrid) -> Self {
-        CustomDraw {
+        AdditionalRender {
             replace: replace,
-            draw_type: CustomDrawType::Room(name, terrain),
+            draw_type: AdditionalRenderType::Room(name, terrain),
             _phantom: PhantomData,
         }
     }
@@ -47,10 +47,10 @@ impl CustomDraw {
                parent_rect,
                parent_scizzor);
 
-        let CustomDraw { replace, draw_type, .. } = self;
+        let AdditionalRender { replace, draw_type, .. } = self;
 
         match draw_type {
-            CustomDrawType::Room(_, grid) => {
+            AdditionalRenderType::Room(_, grid) => {
                 let left_edge = parent_rect.left();
                 let bottom_edge = parent_rect.bottom();
                 let (parent_width, parent_height) = parent_rect.w_h();

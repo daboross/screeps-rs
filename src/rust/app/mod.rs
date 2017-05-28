@@ -31,7 +31,7 @@ pub struct AppCell<'a, 'b: 'a> {
     pub ids: &'a mut ui::Ids,
     pub renderer: &'a mut conrod::backend::glium::Renderer,
     pub net_cache: &'a mut NetCache,
-    pub custom_draw_target: Option<ui::CustomDraw>,
+    pub additional_rendering: Option<ui::AdditionalRender>,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
     pub _phantom: PhantomData<()>,
@@ -79,7 +79,7 @@ impl<'a, 'b: 'a> AppCell<'a, 'b> {
             ids: ids,
             renderer: renderer,
             net_cache: net_cache,
-            custom_draw_target: None,
+            additional_rendering: None,
             _phantom: PhantomData,
         }
     }

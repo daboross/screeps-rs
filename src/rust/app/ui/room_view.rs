@@ -8,7 +8,7 @@ use screeps_api;
 use network;
 
 use super::super::AppCell;
-use super::{GraphicsState, PanelStates, frame, left_panel_available, CustomDraw};
+use super::{GraphicsState, PanelStates, frame, left_panel_available, AdditionalRender};
 
 #[derive(Debug)]
 pub struct RoomViewState<T: network::ScreepsConnection = network::ThreadedHandler> {
@@ -66,7 +66,7 @@ pub fn create_ui(app: &mut AppCell,
         let room_name = screeps_api::RoomName::new("E0N0").unwrap();
         if let Some(terrain) = net.room_terrain(room_name)? {
             debug!("found terrain");
-            app.custom_draw_target = Some(CustomDraw::room(ids.body, room_name, terrain.clone()));
+            app.additional_rendering = Some(AdditionalRender::room(ids.body, room_name, terrain.clone()));
         }
     }
 

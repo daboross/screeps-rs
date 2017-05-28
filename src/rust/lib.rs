@@ -87,7 +87,7 @@ fn main_window_loop(mut app: App) {
             Event::UpdateUi => {
                 debug!("UpdateUI Event.");
 
-                let custom_draw;
+                let additional_render;
 
                 {
                     let App { ref mut ui,
@@ -105,15 +105,15 @@ fn main_window_loop(mut app: App) {
                     // Create main screen.
                     app::create_ui(&mut cell, &mut state);
 
-                    custom_draw = cell.custom_draw_target.take();
+                    additional_render = cell.additional_rendering.take();
                 }
 
                 // Render the `Ui` and then display it on the screen.
                 if let Some(primitives) = app.ui.draw_if_changed() {
                     use app::ui::BACKGROUND_RGB;
 
-                    match custom_draw {
-                        Some(d) => app.renderer.fill(&app.display, d.merged_walker(primitives), &app.image_map),
+                    match additional_render {
+                        Some(r) => app.renderer.fill(&app.display, r.merged_walker(primitives), &app.image_map),
                         None => app.renderer.fill(&app.display, primitives, &app.image_map),
                     }
 
