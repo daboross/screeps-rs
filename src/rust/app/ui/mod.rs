@@ -175,6 +175,7 @@ widget_ids! {
 
         username_gcl_header,
         room_display,
+        room_scroll_widget,
 
         // Login screen
         login_canvas,

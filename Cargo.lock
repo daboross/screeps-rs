@@ -870,7 +870,7 @@ dependencies = [
 [[package]]
 name = "screeps-api"
 version = "0.1.2-dev"
-source = "git+https://github.com/daboross/rust-screeps-api.git#4634d61a456b6270f169730644dd9dc96085aea6"
+source = "git+https://github.com/daboross/rust-screeps-api.git#e5047bab0ddb02df7b00575c8409d2317d332be0"
 dependencies = [
  "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",

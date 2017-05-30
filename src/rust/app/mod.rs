@@ -24,14 +24,14 @@ pub struct App {
     pub _phantom: PhantomData<()>,
 }
 
-pub struct AppCell<'a, 'b: 'a> {
+pub struct AppCell<'a, 'b: 'a, 'c> {
     pub ui: &'a mut conrod::UiCell<'b>,
     pub display: &'a glium::Display,
     pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
     pub ids: &'a mut ui::Ids,
     pub renderer: &'a mut conrod::backend::glium::Renderer,
     pub net_cache: &'a mut NetCache,
-    pub additional_rendering: Option<ui::AdditionalRender>,
+    pub additional_rendering: &'c mut Option<ui::AdditionalRender>,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
     pub _phantom: PhantomData<()>,
@@ -63,13 +63,14 @@ impl App {
     }
 }
 
-impl<'a, 'b: 'a> AppCell<'a, 'b> {
+impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
     pub fn cell(cell: &'a mut conrod::UiCell<'b>,
                 display: &'a glium::Display,
                 image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
                 ids: &'a mut ui::Ids,
                 renderer: &'a mut conrod::backend::glium::Renderer,
-                net_cache: &'a mut NetCache)
+                net_cache: &'a mut NetCache,
+                additional_rendering: &'c mut Option<ui::AdditionalRender>)
                 -> Self {
 
         AppCell {
@@ -79,7 +80,7 @@ impl<'a, 'b: 'a> AppCell<'a, 'b> {
             ids: ids,
             renderer: renderer,
             net_cache: net_cache,
-            additional_rendering: None,
+            additional_rendering: additional_rendering,
             _phantom: PhantomData,
         }
     }

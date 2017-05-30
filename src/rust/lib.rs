@@ -1,3 +1,5 @@
+// impl Trait
+#![feature(conservative_impl_trait)]
 // Graphics
 #[macro_use]
 extern crate conrod;
@@ -89,7 +91,7 @@ fn main_window_loop(mut app: App) {
             Event::UpdateUi => {
                 debug!("UpdateUI Event.");
 
-                let additional_render;
+                let mut additional_render = None;
 
                 {
                     let App { ref mut ui,
@@ -102,12 +104,16 @@ fn main_window_loop(mut app: App) {
 
                     let mut ui_cell = ui.set_widgets();
 
-                    let mut cell = AppCell::cell(&mut ui_cell, display, image_map, ids, renderer, net_cache);
+                    let mut cell = AppCell::cell(&mut ui_cell,
+                                                 display,
+                                                 image_map,
+                                                 ids,
+                                                 renderer,
+                                                 net_cache,
+                                                 &mut additional_render);
 
                     // Create main screen.
                     app::create_ui(&mut cell, &mut state);
-
-                    additional_render = cell.additional_rendering.take();
                 }
 
                 // Render the `Ui` and then display it on the screen.
