@@ -53,7 +53,7 @@ pub fn create_ui(app: &mut AppCell,
 
     // display rect
     Rectangle::fill(ui.wh_of(ids.body).unwrap())
-        .rgba(1.0, 0.0, 0.0, 0.5)
+        .color(color::TRANSPARENT)
         .middle_of(ids.body)
         .graphics_for(ids.room_scroll_widget)
         .set(ids.room_display, ui);
