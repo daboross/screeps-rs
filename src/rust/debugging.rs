@@ -111,14 +111,26 @@ impl<T, E> FailureUnwrapDebug for Result<T, E>
     }
 }
 
-pub fn setup_logger(verbose: bool) {
-    fern::Dispatch::new()
+pub fn setup_logger<T, I>(verbose: bool, debug_modules: Option<I>)
+    where T: AsRef<str>,
+          I: IntoIterator<Item = T>
+{
+    let mut dispatch = fern::Dispatch::new()
         .level(if verbose {
             log::LogLevelFilter::Trace
         } else {
             log::LogLevelFilter::Info
         })
-        .format(|out, msg, record| {
+        .level_for("rustls", log::LogLevelFilter::Warn)
+        .level_for("hyper", log::LogLevelFilter::Warn);
+
+    if let Some(modules) = debug_modules {
+        for module in modules {
+            dispatch = dispatch.level_for(module.as_ref().to_owned(), log::LogLevelFilter::Trace);
+        }
+    }
+
+    dispatch.format(|out, msg, record| {
             let now = chrono::Local::now();
 
             out.finish(format_args!("[{}][{}] {}: {}",

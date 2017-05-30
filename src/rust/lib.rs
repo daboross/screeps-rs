@@ -24,9 +24,11 @@ use glium::{DisplayBuild, Surface};
 pub use app::App;
 use app::{AppCell, Event};
 
-
-pub fn main(verbose_logging: bool) {
-    debugging::setup_logger(verbose_logging);
+pub fn main<T, I>(verbose_logging: bool, debug_modules: Option<I>)
+    where T: AsRef<str>,
+          I: IntoIterator<Item = T>
+{
+    debugging::setup_logger(verbose_logging, debug_modules);
 
     // Create window.
     let display = glutin::WindowBuilder::new()
