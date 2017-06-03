@@ -1,70 +1,33 @@
 use std::borrow::Cow;
 
-use screeps_api;
+use hyper;
+use futures::{future, Future};
+use screeps_api::{self, NoToken};
 
 use self::Request::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Request<'a> {
-    Login {
-        username: Cow<'a, str>,
-        password: Cow<'a, str>,
-    },
+use super::LoginDetails;
+
+#[derive(Clone, Debug, Hash)]
+pub enum Request {
+    Login { details: LoginDetails },
     MyInfo,
     RoomTerrain { room_name: screeps_api::RoomName },
 }
 
-impl<'a> Request<'a> {
-    pub fn login<T, U>(username: T, password: U) -> Self
+impl Request {
+    pub fn login<'a, T, U>(username: T, password: U) -> Self
         where T: Into<Cow<'a, str>>,
               U: Into<Cow<'a, str>>
     {
-        Login {
-            username: username.into(),
-            password: password.into(),
-        }
+        Login { details: LoginDetails::new(username.into().into_owned(), password.into().into_owned()) }
     }
 
-    pub fn into_static(self) -> Request<'static> {
-        match self {
-            Login { username, password } => {
-                Login {
-                    username: username.into_owned().into(),
-                    password: password.into_owned().into(),
-                }
-            }
-            MyInfo => MyInfo,
-            RoomTerrain { room_name } => RoomTerrain { room_name: room_name },
-        }
+    pub fn login_with_details(details: LoginDetails) -> Self {
+        Login { details: details }
     }
 
-    pub fn exec_with<T>(self, client: &mut screeps_api::API<T>) -> NetworkEvent
-        where T: screeps_api::HyperClient
-    {
-        match self {
-            Login { username, password } => {
-                let result = client.login(username.as_ref(), password);
-                NetworkEvent::Login {
-                    username: username.into_owned(),
-                    result: result,
-                }
-            }
-            MyInfo => {
-                let result = client.my_info();
-                NetworkEvent::MyInfo { result: result }
-            }
-            RoomTerrain { room_name } => {
-                let result = client.room_terrain(room_name.to_string());
-                NetworkEvent::RoomTerrain {
-                    room_name: room_name,
-                    result: result,
-                }
-            }
-        }
-    }
-}
 
-impl Request<'static> {
     pub fn my_info() -> Self {
         Request::MyInfo
     }
@@ -72,17 +35,63 @@ impl Request<'static> {
     pub fn room_terrain(room_name: screeps_api::RoomName) -> Self {
         Request::RoomTerrain { room_name: room_name }
     }
+
+    pub fn exec_with<C, H, T>(self,
+                              login: &LoginDetails,
+                              client: &screeps_api::Api<C, H, T>)
+                              -> Box<Future<Item = NetworkEvent, Error = ()> + 'static>
+        where C: hyper::client::Connect,
+              H: screeps_api::HyperClient<C> + Clone + 'static,
+              T: screeps_api::TokenStorage
+    {
+        match self {
+            Login { details } => {
+                let tokens = client.tokens.clone();
+                Box::new(client.login(details.username(), details.password())
+                    .then(move |result| {
+                        future::ok(NetworkEvent::Login {
+                            username: details.username().to_owned(),
+                            result: result.map(|logged_in| logged_in.return_to(&tokens)),
+                        })
+                    }))
+            }
+            MyInfo => {
+                match client.my_info() {
+                    Ok(future) => Box::new(future.then(|result| future::ok(NetworkEvent::MyInfo { result: result }))),
+                    Err(NoToken) => {
+                        let client = client.clone();
+                        Box::new(client.login(login.username(), login.password())
+                            .and_then(move |login_ok| {
+                                login_ok.return_to(&client.tokens);
+
+                                // TODO: something here to avoid a race condition!
+                                client.my_info().expect("just returned token")
+                            })
+                            .then(|result| future::ok(NetworkEvent::MyInfo { result: result })))
+                    }
+                }
+            }
+            RoomTerrain { room_name } => {
+                Box::new(client.room_terrain(room_name.to_string()).then(move |result| {
+                    future::ok(NetworkEvent::RoomTerrain {
+                        room_name: room_name,
+                        result: result,
+                    })
+                }))
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum NetworkEvent {
     Login {
         username: String,
-        result: screeps_api::Result<()>,
+        result: Result<(), screeps_api::Error>,
     },
-    MyInfo { result: screeps_api::Result<screeps_api::MyInfo>, },
+    MyInfo { result: Result<screeps_api::MyInfo, screeps_api::Error>, },
     RoomTerrain {
         room_name: screeps_api::RoomName,
-        result: screeps_api::Result<screeps_api::RoomTerrain>,
+        result: Result<screeps_api::RoomTerrain, screeps_api::Error>,
     },
 }

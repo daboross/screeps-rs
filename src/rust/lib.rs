@@ -7,8 +7,10 @@ extern crate glium;
 extern crate glutin;
 extern crate rusttype;
 // Network
+extern crate tokio_core;
+extern crate futures;
 extern crate hyper;
-extern crate hyper_rustls;
+extern crate hyper_tls;
 extern crate screeps_api;
 extern crate fern;
 // Logging

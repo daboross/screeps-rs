@@ -7,6 +7,9 @@ mod cache;
 mod request;
 mod single_threaded;
 
+use std::sync::Arc;
+use std::fmt;
+
 pub use self::request::{Request, NetworkEvent};
 pub use self::cache::{NetCache, LoginState};
 
@@ -28,3 +31,35 @@ pub trait ScreepsConnection {
 /// Error for not being logged in, and trying to send a query requiring authentication.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct NotLoggedIn;
+
+/// Login username/password.
+#[derive(Clone, Hash)]
+pub struct LoginDetails {
+    inner: Arc<(String, String)>,
+}
+
+impl LoginDetails {
+    /// Creates a new login detail struct.
+    pub fn new(username: String, password: String) -> Self {
+        LoginDetails { inner: Arc::new((username, password)) }
+    }
+
+    /// Gets the username.
+    pub fn username(&self) -> &str {
+        &self.inner.0
+    }
+
+    /// Gets the password.
+    pub fn password(&self) -> &str {
+        &self.inner.1
+    }
+}
+
+impl fmt::Debug for LoginDetails {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("LoginDetails")
+            .field("username", &self.username())
+            .field("password", &"<redacted>")
+            .finish()
+    }
+}
