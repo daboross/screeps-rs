@@ -36,7 +36,7 @@ impl Request {
         Request::RoomTerrain { room_name: room_name }
     }
 
-    pub fn exec_with<C, H, T>(self,
+    pub fn exec_with<C, H, T>(&self,
                               login: &LoginDetails,
                               client: &screeps_api::Api<C, H, T>)
                               -> Box<Future<Item = NetworkEvent, Error = ()> + 'static>
@@ -44,9 +44,10 @@ impl Request {
               H: screeps_api::HyperClient<C> + Clone + 'static,
               T: screeps_api::TokenStorage
     {
-        match self {
-            Login { details } => {
+        match *self {
+            Login { ref details } => {
                 let tokens = client.tokens.clone();
+                let details = details.clone();
                 Box::new(client.login(details.username(), details.password())
                     .then(move |result| {
                         future::ok(NetworkEvent::Login {
@@ -94,4 +95,15 @@ pub enum NetworkEvent {
         room_name: screeps_api::RoomName,
         result: Result<screeps_api::RoomTerrain, screeps_api::Error>,
     },
+}
+
+
+impl NetworkEvent {
+    pub fn error(&self) -> Option<&screeps_api::Error> {
+        match *self {
+            NetworkEvent::Login { ref result, .. } => result.as_ref().err(),
+            NetworkEvent::MyInfo { ref result, .. } => result.as_ref().err(),
+            NetworkEvent::RoomTerrain { ref result, .. } => result.as_ref().err(),
+        }
+    }
 }

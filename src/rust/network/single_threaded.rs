@@ -1,16 +1,23 @@
 use std::{fmt, thread};
 
-use std::sync::mpsc::{self as std_mpsc, Sender as StdSender, Receiver as StdReceiver};
+use std::time::Duration;
 
-use futures::sync::mpsc::{self as futures_mpsc, UnboundedSender as FuturesSender, UnboundedReceiver as FuturesReceiver};
+use std::sync::mpsc as std_mpsc;
+use std::sync::mpsc::Sender as StdSender;
+use std::sync::mpsc::Receiver as StdReceiver;
+
+use futures::sync::mpsc as futures_mpsc;
+use futures::sync::mpsc::UnboundedSender as FuturesSender;
+use futures::sync::mpsc::UnboundedReceiver as FuturesReceiver;
+use futures::sync::mpsc::Sender as BoundedFuturesSender;
 
 use futures::{future, Future, Stream};
+use tokio_core::reactor::{Handle, Remote, Core, Timeout};
+use hyper::status::StatusCode;
 
-use tokio_core::reactor::{Remote, Core};
+use screeps_api::{self, TokenStorage, ArcTokenStorage};
 
-use screeps_api::ArcTokenStorage;
-
-use {glutin, hyper, hyper_tls, tokio_core, screeps_api};
+use {glutin, hyper, hyper_tls, tokio_core};
 
 use super::{LoginDetails, Request, NetworkEvent, ScreepsConnection, NotLoggedIn};
 
@@ -146,6 +153,76 @@ struct ThreadedHandler {
     tokens: ArcTokenStorage,
 }
 
+struct TokioExecutor<C, H, T> {
+    handle: Handle,
+    send_results: StdSender<NetworkEvent>,
+    notify: glutin::WindowProxy,
+    executor_return: BoundedFuturesSender<TokioExecutor<C, H, T>>,
+    login: LoginDetails,
+    client: screeps_api::Api<C, H, T>,
+}
+
+impl<C, H, T> TokioExecutor<C, H, T>
+    where C: hyper::client::Connect,
+          H: screeps_api::HyperClient<C> + 'static + Clone,
+          T: TokenStorage
+{
+    fn execute_request(self, request: Request) -> impl Future<Item = (), Error = ()> + 'static {
+        use futures::Sink;
+
+        request.exec_with(&self.login, &self.client)
+            .then(move |event_result| -> Box<Future<Item = (), Error = ()> + 'static> {
+                // this should never return an error - in any case though, we should handle the Err case so we
+                // do return the executor.
+                if let Ok(event) = event_result {
+                    if let Some(err) = event.error() {
+                        if let screeps_api::ErrorKind::StatusCode(ref status) = *err.kind() {
+                            if *status == StatusCode::TooManyRequests {
+                                debug!("starting 5-second timeout from TooManyRequests error.");
+                                match Timeout::new(Duration::from_secs(5), &self.handle) {
+                                    Ok(timeout) => {
+                                        return Box::new(timeout.then(|result| {
+                                            if let Err(e) = result {
+                                                warn!("IO error in 5-second timeout! {}", e);
+                                            }
+
+                                            debug!("5-second timeout finished.");
+
+                                            self.execute_request(request)
+                                        })) as
+                                               Box<Future<Item = (), Error = ()>>
+                                    }
+                                    Err(e) => {
+                                        warn!("IO error in attempt to start timeout: {}", e);
+                                        warn!("instead of timing out, just letting 429 error fall through instead.");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    match self.send_results.send(event) {
+                        Ok(_) => {
+                            trace!("successfully finished a request.");
+                            self.notify.wakeup_event_loop();
+                        }
+                        Err(_) => {
+                            warn!("failed to send the result of a request.");
+                        }
+                    }
+                } else {
+                    warn!("unexpected () error from calling Request::exec_with!");
+                }
+
+                Box::new(self.executor_return.clone().send(self).then(|result| {
+                    if let Err(_) = result {
+                        warn!("couldn't return connection token after finishing a request.")
+                    };
+                    future::ok(())
+                })) as Box<Future<Item = (), Error = ()>>
+            })
+    }
+}
 impl ThreadedHandler {
     fn new(recv: FuturesReceiver<Request>,
            send: StdSender<NetworkEvent>,
@@ -194,39 +271,24 @@ impl ThreadedHandler {
 
         // fill with 5 tokens.
         for _ in 0..5 {
-            assert!(token_pool_send.start_send(()).expect("expected newly created channel to be empty").is_ready());
+            let cloned_send = token_pool_send.clone();
+            assert!(token_pool_send.start_send(TokioExecutor {
+                    handle: handle.clone(),
+                    send_results: send.clone(),
+                    notify: window.clone(),
+                    executor_return: cloned_send,
+                    login: login.clone(),
+                    client: client.clone(),
+                })
+                .expect("expected newly created channel to still be in scope")
+                .is_ready());
         }
 
         // zip ensures that we have one token for each request! this way we'll
         // never have more than 5 concurrent requests.
-        let result = core.run(recv.zip(token_pool_recv).and_then(|(request, ())| {
-            let send_results = send.clone();
-            let window_notify = window.clone();
-            let send_tokens = token_pool_send.clone();
-            let request_finish_future = request.exec_with(&login, &client).and_then(move |event| {
-                match send_results.send(event) {
-                    Ok(_) => {
-                        trace!("successfully finished a request.");
-                        window_notify.wakeup_event_loop();
-                    }
-                    Err(_) => {
-                        warn!("failed to send the result of a request.");
-                    }
-                }
-
-                future::ok(())
-            }).then(|_| {
-                // in the case of success or failure, let's add one more token so we can start
-                // another request.
-                send_tokens.send(()).then(|result| {
-                    if let Err(_) = result {
-                        warn!("couldn't return connection token after finishing a request.")
-                    };
-                    future::ok(())
-                })
-            });
-
-            handle.spawn(request_finish_future);
+        let result = core.run(recv.zip(token_pool_recv).and_then(|(request, executor)| {
+            // execute request returns the executor to the token poll at the end.
+            handle.spawn(executor.execute_request(request));
 
             future::ok(())
         }).fold((), |(), _| future::ok(())));
