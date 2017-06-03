@@ -437,7 +437,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "hyper"
 version = "0.11.0-a.0"
-source = "git+https://github.com/hyperium/hyper.git#edc1c0dd01b24ee32250dff51268ad60fff9293d"
+source = "git+https://github.com/hyperium/hyper.git#76fc633613c35563f66431aeefd34ab4ee0cf7a0"
 dependencies = [
  "base64 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -897,7 +897,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "screeps-api"
 version = "0.2.1-dev"
-source = "git+https://github.com/daboross/rust-screeps-api.git#7e7f5a74c392b22c671010bacb85c4e18fc88fe2"
+source = "git+https://github.com/daboross/rust-screeps-api.git#cc7bb1d01f34d62c97f1dc11276a0db65daac3e1"
 dependencies = [
  "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
