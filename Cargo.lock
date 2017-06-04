@@ -437,7 +437,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "hyper"
 version = "0.11.0-a.0"
-source = "git+https://github.com/hyperium/hyper.git#76fc633613c35563f66431aeefd34ab4ee0cf7a0"
+source = "git+https://github.com/hyperium/hyper.git#acd62cda446e4c647716a2d595342360dc24a080"
 dependencies = [
  "base64 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
