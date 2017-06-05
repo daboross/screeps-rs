@@ -87,8 +87,8 @@ pub fn create_ui(app: &mut AppCell,
 
         let room_size = view_rect.w().min(view_rect.h()) * zoom_multiplier_from_factor(zoom_factor);
 
-        let room_scroll_x = saved_room_scroll_x;
-        let room_scroll_y = saved_room_scroll_y;
+        let room_scroll_x = saved_room_scroll_x - (view_rect.w() / room_size / 2.0);
+        let room_scroll_y = saved_room_scroll_y - (view_rect.h() / room_size / 2.0);
 
         let initial_room = screeps_api::RoomName {
             x_coord: room_scroll_x.floor() as i32,
@@ -160,10 +160,12 @@ pub fn create_ui(app: &mut AppCell,
     Ok(())
 }
 
+#[inline(always)]
 fn zoom_multiplier_from_factor(zoom_factor: f64) -> f64 {
     zoom_factor.powf(2.0)
 }
 
+#[inline(always)]
 fn bound_zoom(zoom_factor: f64) -> f64 {
     zoom_factor.powf(2.0).min(MAX_ZOOM).max(MIN_ZOOM).powf(0.5)
 }
@@ -214,11 +216,11 @@ impl ScrollState {
                 let room_pixel_size = room_size_unit * zoom_multiplier_from_factor(self.zoom_factor);
                 let new_room_pixel_size = room_size_unit * zoom_multiplier_from_factor(new_zoom_factor);
 
-                let current_room_x = abs_mouse_x / room_pixel_size;
-                let current_room_y = abs_mouse_y / room_pixel_size;
+                let current_room_x = abs_mouse_x / room_pixel_size - (view_rect.w() / room_pixel_size / 2.0);
+                let current_room_y = abs_mouse_y / room_pixel_size - (view_rect.h() / room_pixel_size / 2.0);
 
-                let next_room_x = abs_mouse_x / new_room_pixel_size;
-                let next_room_y = abs_mouse_y / new_room_pixel_size;
+                let next_room_x = abs_mouse_x / new_room_pixel_size - (view_rect.w() / new_room_pixel_size / 2.0);
+                let next_room_y = abs_mouse_y / new_room_pixel_size - (view_rect.h() / new_room_pixel_size / 2.0);
 
                 self.scroll_x += current_room_x - next_room_x;
                 self.scroll_y += current_room_y - next_room_y;
