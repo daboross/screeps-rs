@@ -3,10 +3,12 @@ use std::borrow::Cow;
 use hyper;
 use futures::{future, Future};
 use screeps_api::{self, NoToken};
+use tokio_core::reactor;
 
 use self::Request::*;
 
 use super::LoginDetails;
+use super::cache::disk;
 
 #[derive(Clone, Debug, Hash)]
 pub enum Request {
@@ -38,7 +40,9 @@ impl Request {
 
     pub fn exec_with<C, H, T>(&self,
                               login: &LoginDetails,
-                              client: &screeps_api::Api<C, H, T>)
+                              client: &screeps_api::Api<C, H, T>,
+                              cache: &disk::Cache,
+                              handle: &reactor::Handle)
                               -> Box<Future<Item = NetworkEvent, Error = ()> + 'static>
         where C: hyper::client::Connect,
               H: screeps_api::HyperClient<C> + Clone + 'static,
@@ -73,11 +77,42 @@ impl Request {
                 }
             }
             RoomTerrain { room_name } => {
-                Box::new(client.room_terrain(room_name.to_string()).then(move |result| {
-                    future::ok(NetworkEvent::RoomTerrain {
-                        room_name: room_name,
-                        result: result,
-                    })
+                let client = client.clone();
+                let cache = cache.clone();
+                let handle = handle.clone();
+                Box::new(cache.get_terrain(room_name).then(move |result| {
+                    match result {
+                            Ok(Some(terrain)) => {
+                                Box::new(future::ok(terrain)) as
+                                Box<Future<Item = screeps_api::TerrainGrid, Error = screeps_api::Error>>
+                            }
+                            other => {
+                                if let Err(e) = other {
+
+                                    warn!("error occurred fetching terrain cache: {}", e);
+                                }
+                                Box::new(client.room_terrain(room_name.to_string())
+                                    .map(|data| data.terrain)
+                                    .and_then(move |data| {
+                                        handle.spawn(cache.set_terrain(room_name, &data)
+                                            .then(|result| {
+                                                if let Err(e) = result {
+                                                    warn!("error occurred storing to terrain cache: {}", e);
+                                                }
+                                                Ok(())
+                                            }));
+
+                                        future::ok(data)
+                                    })) as
+                                Box<Future<Item = screeps_api::TerrainGrid, Error = screeps_api::Error>>
+                            }
+                        }
+                        .then(move |result| {
+                            future::ok(NetworkEvent::RoomTerrain {
+                                room_name: room_name,
+                                result: result,
+                            })
+                        })
                 }))
             }
         }
@@ -93,7 +128,7 @@ pub enum NetworkEvent {
     MyInfo { result: Result<screeps_api::MyInfo, screeps_api::Error>, },
     RoomTerrain {
         room_name: screeps_api::RoomName,
-        result: Result<screeps_api::RoomTerrain, screeps_api::Error>,
+        result: Result<screeps_api::TerrainGrid, screeps_api::Error>,
     },
 }
 

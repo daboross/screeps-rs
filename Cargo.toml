@@ -27,15 +27,24 @@ rusttype = "0.2"
 # conrod = { version = "0.51", features = ["glium", "winit"] }
 # Networking
 futures = "0.1"
+futures-cpupool = "0.1"
 tokio-core = "0.1"
 hyper = { git = "https://github.com/hyperium/hyper.git" }
 hyper-tls = { git = "https://github.com/hyperium/hyper-tls.git" }
 screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git" }
-# Logging
+# Caching
 time = "0.1"
+bincode = "0.8"
+rocksdb = "0.6"
+app_dirs = "1.1"
+serde = "1.0"
+serde_derive = "1.0"
+arrayvec = { version = "0.3", features = ["serde"] }
+# Logging
 chrono = "0.3"
 log = "0.3"
 fern = "0.4"
+# Command-line
 clap = "2.22"
 
 [dependencies.conrod]
@@ -47,3 +56,6 @@ features = ["glium", "winit"]
 [[bin]]
 name = "scrs"
 doc = false
+
+[replace]
+"arrayvec:0.3.23" = { git = "https://github.com/daboross/arrayvec.git", branch = "serde-0.3" }

@@ -58,7 +58,9 @@ impl ::std::fmt::Debug for LoginScreenState {
 
 pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Option<GraphicsState>) {
     if let Some(ref mut network) = state.network {
-        app.net_cache.align(network);
+        app.net_cache.align(network, |event| {
+            warn!("Network error: {}", event);
+        });
     }
 
     if app.net_cache.login_state() == network::LoginState::LoggedIn {
@@ -230,10 +232,12 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
               state.password.len() > 0 {
         match state.network {
             Some(ref mut net) => {
+                debug!("sending login request to existing network.");
                 net.send(Request::login(&*state.username, &*state.password))
                     .expect("Cannot receive login error for login request.");
             }
             None => {
+                debug!("sending login request to new network.");
                 let proxy = display.get_window()
                     .uw(FailStage::Runtime, "could not find window, headless?")
                     .create_window_proxy();

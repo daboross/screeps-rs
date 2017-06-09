@@ -63,9 +63,17 @@ pub fn create_ui(app: &mut AppCell,
         .graphics_for(ids.room_scroll_widget)
         .set(ids.room_display, ui);
 
+    let mut bail = false;
+
     {
-        let mut net = net_cache.align(&mut state.network);
-        if let Some(info) = net.my_info()? {
+        let mut net = net_cache.align(&mut state.network, |err| match err {
+            network::ErrorEvent::NotLoggedIn => bail = true,
+            network::ErrorEvent::ErrorOccurred(e) => {
+                // TODO: do a "notification bar" side thing in the app with these.
+                warn!("network error occurred: {}", e);
+            }
+        });
+        if let Some(info) = net.my_info() {
             Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))
                 // style
                 .font_size(ui.theme.font_size_small)
@@ -117,7 +125,8 @@ pub fn create_ui(app: &mut AppCell,
                count_x,
                count_y);
 
-        let rooms = (0..count_x).flat_map(move |rel_x| {
+        let rooms = (0..count_x)
+            .flat_map(move |rel_x| {
                 (0..count_y).map(move |rel_y| {
                     let room_name = initial_room + (rel_x, rel_y);
 
@@ -128,19 +137,18 @@ pub fn create_ui(app: &mut AppCell,
                 })
             })
             .flat_map(|(room_name, rect)| match net.room_terrain(room_name) {
-                Ok(Some(terrain)) => {
+                Some(terrain) => {
                     debug!("found room terrain {}", room_name);
-                    Some(Ok((rect, terrain.clone())))
+                    Some((rect, terrain.clone()))
                 }
-                Ok(None) => {
+                None => {
                     debug!("didn't find room terrain {}", room_name);
                     None
                 }
-                Err(e) => Some(Err(e)),
             })
-            .collect::<Result<Vec<(Rect, screeps_api::TerrainGrid)>, network::NotLoggedIn>>()?;
+            .collect::<Vec<(Rect, screeps_api::TerrainGrid)>>();
 
-        // fetch rooms just outside the boundary as well so we can have smoother moving
+        // fetch rooms just outside the boundary as well so we can have smoother scrolling
         for &rel_x in [-1, count_x + 1].iter() {
             for rel_y in -1..count_y + 1 {
                 let _ = net.room_terrain(initial_room + (rel_x, rel_y));
@@ -157,7 +165,11 @@ pub fn create_ui(app: &mut AppCell,
         }
     }
 
-    Ok(())
+    if bail {
+        Err(network::NotLoggedIn)
+    } else {
+        Ok(())
+    }
 }
 
 #[inline(always)]

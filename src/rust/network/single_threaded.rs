@@ -20,6 +20,7 @@ use screeps_api::{self, TokenStorage, ArcTokenStorage};
 use {glutin, hyper, hyper_tls, tokio_core};
 
 use super::{LoginDetails, Request, NetworkEvent, ScreepsConnection, NotLoggedIn};
+use super::cache::disk;
 
 pub struct Handler {
     /// Receiver and sender interacting with the current threaded handler.
@@ -30,6 +31,8 @@ pub struct Handler {
     handles: Option<(Remote, FuturesSender<Request>, StdReceiver<NetworkEvent>)>,
     /// Tokens saved.
     tokens: ArcTokenStorage,
+    /// Disk cache database Handle
+    disk_cache: disk::Cache,
     /// Username and password in case we need to re-login.
     login_info: Option<LoginDetails>,
     /// Window proxy in case we need to restart handler thread.
@@ -43,6 +46,8 @@ impl Handler {
             handles: None,
             login_info: None,
             tokens: ArcTokenStorage::default(),
+            // TODO: handle this gracefully
+            disk_cache: disk::Cache::load().expect("loading the disk cache failed."),
             window: window,
         }
     }
@@ -76,7 +81,8 @@ impl Handler {
                                            handler_send,
                                            self.window.clone(),
                                            self.tokens.clone(),
-                                           login_details.clone());
+                                           login_details.clone(),
+                                           self.disk_cache.clone());
 
         let remote = handler.start_async_and_get_remote();
 
@@ -100,17 +106,12 @@ impl ScreepsConnection for Handler {
         };
 
         if let Some(request) = request_retry {
-            match request {
-                Request::Login { details } => {
-                    self.login_info = Some(details);
-                    self.start_handler()?;
-                }
-                request => {
-                    self.start_handler()?;
-                    let send = &self.handles.as_ref().expect("expected handles to exist after freshly restarting").1;
-                    send.send(request).expect("expected freshly started handler to still be running");
-                }
+            if let Request::Login { ref details } = request {
+                self.login_info = Some(details.clone());
             }
+            self.start_handler()?;
+            let send = &self.handles.as_ref().expect("expected handles to exist after freshly restarting").1;
+            send.send(request).expect("expected freshly started handler to still be running");
         }
 
         Ok(())
@@ -133,6 +134,7 @@ impl ScreepsConnection for Handler {
         evt
     }
 }
+
 impl fmt::Debug for Handler {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         fmt.debug_struct("Handler")
@@ -151,6 +153,7 @@ struct ThreadedHandler {
     window: glutin::WindowProxy,
     login: LoginDetails,
     tokens: ArcTokenStorage,
+    disk_cache: disk::Cache,
 }
 
 struct TokioExecutor<C, H, T> {
@@ -160,6 +163,7 @@ struct TokioExecutor<C, H, T> {
     executor_return: BoundedFuturesSender<TokioExecutor<C, H, T>>,
     login: LoginDetails,
     client: screeps_api::Api<C, H, T>,
+    disk_cache: disk::Cache,
 }
 
 impl<C, H, T> TokioExecutor<C, H, T>
@@ -170,7 +174,7 @@ impl<C, H, T> TokioExecutor<C, H, T>
     fn execute_request(self, request: Request) -> impl Future<Item = (), Error = ()> + 'static {
         use futures::Sink;
 
-        request.exec_with(&self.login, &self.client)
+        request.exec_with(&self.login, &self.client, &self.disk_cache, &self.handle)
             .then(move |event_result| -> Box<Future<Item = (), Error = ()> + 'static> {
                 // this should never return an error - in any case though, we should handle the Err case so we
                 // do return the executor.
@@ -228,7 +232,8 @@ impl ThreadedHandler {
            send: StdSender<NetworkEvent>,
            awaken: glutin::WindowProxy,
            tokens: ArcTokenStorage,
-           login: LoginDetails)
+           login: LoginDetails,
+           disk_cache: disk::Cache)
            -> Self {
         ThreadedHandler {
             recv: recv,
@@ -236,6 +241,7 @@ impl ThreadedHandler {
             window: awaken,
             login: login,
             tokens: tokens,
+            disk_cache: disk_cache,
         }
     }
 
@@ -248,7 +254,7 @@ impl ThreadedHandler {
     fn run(self, send_remote_to: StdSender<tokio_core::reactor::Remote>) {
         use futures::Sink;
 
-        let ThreadedHandler { recv, send, window, login, tokens } = self;
+        let ThreadedHandler { recv, send, window, login, tokens, disk_cache } = self;
 
         let mut core = Core::new().expect("expected tokio core to succeed startup.");
 
@@ -259,6 +265,8 @@ impl ThreadedHandler {
         }
 
         let handle = core.handle();
+
+        disk_cache.start_cache_clean_task(&handle).expect("expected starting database cleanup interval to succeed");
 
         let hyper = hyper::Client::configure()
             .connector(hyper_tls::HttpsConnector::new(4, &handle))
@@ -279,6 +287,7 @@ impl ThreadedHandler {
                     executor_return: cloned_send,
                     login: login.clone(),
                     client: client.clone(),
+                    disk_cache: disk_cache.clone(),
                 })
                 .expect("expected newly created channel to still be in scope")
                 .is_ready());

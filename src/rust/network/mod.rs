@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::fmt;
 
 pub use self::request::{Request, NetworkEvent};
-pub use self::cache::{NetCache, LoginState};
+pub use self::cache::{LoginState, ErrorEvent, MemCache};
 
 pub use self::single_threaded::Handler as ThreadedHandler;
 

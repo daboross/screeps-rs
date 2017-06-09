@@ -10,7 +10,7 @@ use conrod;
 use glium;
 
 use debugging::{FailureUnwrap, FailureUnwrapDebug, FailStage};
-use network::NetCache;
+use network::MemCache;
 
 pub struct App {
     pub ui: conrod::Ui,
@@ -18,7 +18,7 @@ pub struct App {
     pub image_map: conrod::image::Map<glium::texture::Texture2d>,
     pub ids: ui::Ids,
     pub renderer: conrod::backend::glium::Renderer,
-    pub net_cache: NetCache,
+    pub net_cache: MemCache,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
     pub _phantom: PhantomData<()>,
@@ -30,7 +30,7 @@ pub struct AppCell<'a, 'b: 'a, 'c> {
     pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
     pub ids: &'a mut ui::Ids,
     pub renderer: &'a mut conrod::backend::glium::Renderer,
-    pub net_cache: &'a mut NetCache,
+    pub net_cache: &'a mut MemCache,
     pub additional_rendering: &'c mut Option<ui::AdditionalRender>,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
@@ -57,7 +57,7 @@ impl App {
             image_map: image_map,
             ids: ids,
             renderer: renderer,
-            net_cache: NetCache::new(),
+            net_cache: MemCache::new(),
             _phantom: PhantomData,
         }
     }
@@ -69,7 +69,7 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
                 image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
                 ids: &'a mut ui::Ids,
                 renderer: &'a mut conrod::backend::glium::Renderer,
-                net_cache: &'a mut NetCache,
+                net_cache: &'a mut MemCache,
                 additional_rendering: &'c mut Option<ui::AdditionalRender>)
                 -> Self {
 
