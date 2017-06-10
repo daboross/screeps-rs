@@ -1,9 +1,13 @@
 use std::marker::PhantomData;
 
-use conrod::{widget, Rect};
+use conrod::{widget, Rect, Color};
 use conrod::render::{PrimitiveWalker, Primitive, PrimitiveKind};
 use screeps_api::RoomName;
 use screeps_api::endpoints::room_terrain::{TerrainGrid, TerrainType};
+
+const WALL_COLOR: Color = Color::Rgba(0.07, 0.07, 0.07, 1.0);
+const SWAMP_COLOR: Color = Color::Rgba(0.16, 0.17, 0.09, 1.0);
+const PLAINS_COLOR: Color = Color::Rgba(0.17, 0.17, 0.17, 1.0);
 
 #[derive(Clone, Debug)]
 pub enum AdditionalRenderType {
@@ -38,8 +42,6 @@ fn render_terrain(id: widget::Id,
 
     terrain.into_iter().enumerate().flat_map(move |(y, row)| {
         row.into_iter().enumerate().map(move |(x, tile)| {
-            use conrod::color::*;
-
             let x_pos = left_edge + (x as f64) * size_unit;
             let y_pos = bottom_edge + (y as f64) * size_unit;
 
@@ -47,10 +49,9 @@ fn render_terrain(id: widget::Id,
                 id: id,
                 kind: PrimitiveKind::Rectangle {
                     color: match tile {
-                        TerrainType::Plains => LIGHT_GREY,
-                        TerrainType::Wall => DARK_BROWN,
-                        TerrainType::SwampyWall => DARK_GREEN,
-                        TerrainType::Swamp => LIGHT_GREEN,
+                        TerrainType::Plains => PLAINS_COLOR,
+                        TerrainType::Wall | TerrainType::SwampyWall => WALL_COLOR,
+                        TerrainType::Swamp => SWAMP_COLOR,
                     },
                 },
                 scizzor: scizzor,
