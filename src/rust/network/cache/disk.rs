@@ -90,7 +90,7 @@ impl Cache {
 
         Ok(Cache {
             database: Arc::new(database),
-            access_pool: CpuPool::new(1),
+            access_pool: CpuPool::new(3),
         })
     }
 
