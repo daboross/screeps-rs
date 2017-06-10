@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use screeps_api;
 use time::{self, Duration};
@@ -81,7 +82,7 @@ impl<T> TimeoutValue<T> {
 pub struct MemCache {
     login: TimeoutValue<()>,
     my_info: TimeoutValue<screeps_api::MyInfo>,
-    terrain: HashMap<screeps_api::RoomName, TimeoutValue<screeps_api::endpoints::room_terrain::TerrainGrid>>,
+    terrain: HashMap<screeps_api::RoomName, TimeoutValue<Rc<screeps_api::endpoints::room_terrain::TerrainGrid>>>,
 }
 
 pub struct NetworkedMemCache<'a, T: ScreepsConnection + 'a, F: FnMut(ErrorEvent) + 'a> {
@@ -107,7 +108,7 @@ impl MemCache {
                 self.terrain
                     .entry(room_name)
                     .or_insert_with(TimeoutValue::default)
-                    .event(result)
+                    .event(result.map(Rc::new))
                     .err()
             }
         };
@@ -171,7 +172,7 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
 
     pub fn room_terrain(&mut self,
                         room_name: screeps_api::RoomName)
-                        -> Option<&screeps_api::endpoints::room_terrain::TerrainGrid> {
+                        -> Option<&Rc<screeps_api::endpoints::room_terrain::TerrainGrid>> {
         let holder = self.cache.terrain.entry(room_name).or_insert_with(TimeoutValue::default);
 
         if holder.should_request(Some(Duration::minutes(360)), Duration::seconds(30)) {

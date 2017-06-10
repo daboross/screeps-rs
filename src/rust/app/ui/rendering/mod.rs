@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 use conrod::{widget, Rect, Color};
 use conrod::render::{PrimitiveWalker, Primitive, PrimitiveKind};
@@ -11,8 +12,8 @@ const PLAINS_COLOR: Color = Color::Rgba(0.17, 0.17, 0.17, 1.0);
 
 #[derive(Clone, Debug)]
 pub enum AdditionalRenderType {
-    Room(RoomName, TerrainGrid),
-    Rooms(Vec<(Rect, TerrainGrid)>),
+    Room(RoomName, Rc<TerrainGrid>),
+    Rooms(Vec<(Rect, Rc<TerrainGrid>)>),
 }
 
 #[derive(Clone, Debug)]
@@ -28,10 +29,54 @@ pub struct MergedPrimitives<T: Sized> {
     walker: T,
 }
 
+struct RcTerrainIterator {
+    x: u8,
+    y: u8,
+    inner: Rc<TerrainGrid>,
+}
+
+impl RcTerrainIterator {
+    fn new(terrain: Rc<TerrainGrid>) -> Self {
+        assert_eq!(terrain.len(), 50);
+
+        assert_eq!(terrain[0].len(), 50);
+
+        RcTerrainIterator {
+            x: 0,
+            y: 0,
+            inner: terrain,
+        }
+    }
+}
+
+impl Iterator for RcTerrainIterator {
+    /// (x, y, type)
+    type Item = (u8, u8, TerrainType);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.y == 50 {
+            return None;
+        }
+        let item = (self.x, self.y, self.inner[self.y as usize][self.x as usize]);
+
+        if self.x < 49 {
+            self.x += 1;
+        } else {
+            self.x = 0;
+            self.y += 1;
+            if self.y < 50 {
+                assert_eq!(self.inner[self.y as usize].len(), 50);
+            }
+        }
+
+        Some(item)
+    }
+}
+
 fn render_terrain(id: widget::Id,
                   rect: Rect,
                   scizzor: Rect,
-                  terrain: TerrainGrid)
+                  terrain: Rc<TerrainGrid>)
                   -> impl Iterator<Item = Primitive<'static>> {
     debug!("rendering room at {:?}", rect);
     let (width, height) = rect.w_h();
@@ -40,29 +85,27 @@ fn render_terrain(id: widget::Id,
     let left_edge = rect.left();
     let bottom_edge = rect.bottom();
 
-    terrain.into_iter().enumerate().flat_map(move |(y, row)| {
-        row.into_iter().enumerate().map(move |(x, tile)| {
-            let x_pos = left_edge + (x as f64) * size_unit;
-            let y_pos = bottom_edge + (y as f64) * size_unit;
+    RcTerrainIterator::new(terrain).map(move |(x, y, tile)| {
+        let x_pos = left_edge + (x as f64) * size_unit;
+        let y_pos = bottom_edge + (y as f64) * size_unit;
 
-            Primitive {
-                id: id,
-                kind: PrimitiveKind::Rectangle {
-                    color: match tile {
-                        TerrainType::Plains => PLAINS_COLOR,
-                        TerrainType::Wall | TerrainType::SwampyWall => WALL_COLOR,
-                        TerrainType::Swamp => SWAMP_COLOR,
-                    },
+        Primitive {
+            id: id,
+            kind: PrimitiveKind::Rectangle {
+                color: match tile {
+                    TerrainType::Plains => PLAINS_COLOR,
+                    TerrainType::Wall | TerrainType::SwampyWall => WALL_COLOR,
+                    TerrainType::Swamp => SWAMP_COLOR,
                 },
-                scizzor: scizzor,
-                rect: Rect::from_corners([x_pos, y_pos], [x_pos + size_unit, y_pos + size_unit]),
-            }
-        })
+            },
+            scizzor: scizzor,
+            rect: Rect::from_corners([x_pos, y_pos], [x_pos + size_unit, y_pos + size_unit]),
+        }
     })
 }
 
 impl AdditionalRender {
-    pub fn room(replace: widget::Id, name: RoomName, terrain: TerrainGrid) -> Self {
+    pub fn room(replace: widget::Id, name: RoomName, terrain: Rc<TerrainGrid>) -> Self {
         AdditionalRender {
             replace: replace,
             draw_type: AdditionalRenderType::Room(name, terrain),
@@ -70,7 +113,7 @@ impl AdditionalRender {
         }
     }
 
-    pub fn room_grid(replace: widget::Id, rooms: Vec<(Rect, TerrainGrid)>) -> Self {
+    pub fn room_grid(replace: widget::Id, rooms: Vec<(Rect, Rc<TerrainGrid>)>) -> Self {
         AdditionalRender {
             replace: replace,
             draw_type: AdditionalRenderType::Rooms(rooms),

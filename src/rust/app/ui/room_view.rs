@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::rc::Rc;
 
 use conrod::{color, Colorable, Positionable, Widget, Rect, Borderable, Sizeable};
 use conrod::widget::*;
@@ -146,7 +147,7 @@ pub fn create_ui(app: &mut AppCell,
                     None
                 }
             })
-            .collect::<Vec<(Rect, screeps_api::TerrainGrid)>>();
+            .collect::<Vec<(Rect, Rc<screeps_api::TerrainGrid>)>>();
 
         // fetch rooms just outside the boundary as well so we can have smoother scrolling
         for &rel_x in [-1, count_x + 1].iter() {
