@@ -12,12 +12,9 @@ before_script:
 - export PATH="$PATH:$HOME/.cargo/bin"
 - which rustfmt || cargo install rustfmt --vers 0.7.1
 - rustfmt --version
-- which c++
-- c++ --version
-- ls -l /usr/bin/c++* /usr/bin/g++*
-- echo $PATH
-- env
+- export CC="/usr/bin/g++-5"
+- "$CC" --version
 script:
-- cargo build
-- cargo fmt -- --write-mode=diff
-- cargo test
+- cargo build --verbose
+- cargo fmt --verbose -- --write-mode=diff
+- cargo test --verbose
