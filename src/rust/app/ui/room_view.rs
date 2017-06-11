@@ -13,7 +13,7 @@ use super::{GraphicsState, PanelStates, frame, left_panel_available, AdditionalR
 use self::room_view_widget::ScrollableRoomView;
 
 const ZOOM_MODIFIER: f64 = 1.0 / 500.0;
-const MIN_ZOOM: f64 = 0.04;
+const MIN_ZOOM: f64 = 0.1;
 const MAX_ZOOM: f64 = 10.0;
 
 #[derive(Debug)]
@@ -197,7 +197,7 @@ impl Default for ScrollState {
         ScrollState {
             scroll_x: 0.0,
             scroll_y: 0.0,
-            zoom_factor: 2.0,
+            zoom_factor: 1.0,
         }
     }
 }
