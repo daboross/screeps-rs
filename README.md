@@ -1,6 +1,7 @@
 screeps-rs
 ==========
-[![Build Status][travis-image]][travis-builds]
+[![Linux Build Status][travis-image]][travis-builds]
+[![Windows Build Status][appveyor-image]][appveyor-builds]
 
 WIP native screeps client using [Rust] and [conrod].
 
@@ -30,6 +31,8 @@ Eventually, this will be able to connect to both the [official server][screeps] 
 
 [travis-image]: https://travis-ci.org/daboross/screeps-rs.svg?branch=master
 [travis-builds]: https://travis-ci.org/daboross/screeps-rs
+[appveyor-image]: https://ci.appveyor.com/api/projects/status/github/daboross/screeps-rs?branch=master&svg=true
+[appveyor-builds]: https://ci.appveyor.com/project/daboross/screeps-rs
 [rust]: https://www.rust-lang.org/
 [conrod]: https://github.com/PistonDevelopers/conrod/
 [`rust-screeps-api`]: https://github.com/daboross/rust-screeps-api
