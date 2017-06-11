@@ -5,7 +5,7 @@ rust: nightly
 cache: cargo
 before_script:
 - export PATH="$PATH:$HOME/.cargo/bin"
-- which rustfmt || cargo install rustfmt --vers 0.7.1
+- which rustfmt || travis_wait cargo install rustfmt -j 1 --verbose --vers 0.7.1
 - rustfmt --version
 - c++ --version
 script:
