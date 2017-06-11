@@ -9,6 +9,6 @@ before_script:
 - rustfmt --version
 - c++ --version
 script:
-- cargo build --verbose
+- travis_wait cargo build -j 1 --verbose
 - cargo fmt --verbose -- --write-mode=diff
 - cargo test --verbose
