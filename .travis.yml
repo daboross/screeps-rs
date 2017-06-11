@@ -1,10 +1,13 @@
 language: rust
 sudo: false
 cache: cargo
-rust:
-- stable
-- beta
-- nightly
+rust: nightly
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - g++-5
 before_script:
 - export PATH="$PATH:$HOME/.cargo/bin"
 - which rustfmt || cargo install rustfmt --vers 0.7.1
