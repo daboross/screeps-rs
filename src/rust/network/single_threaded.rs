@@ -13,7 +13,7 @@ use futures::sync::mpsc::Sender as BoundedFuturesSender;
 
 use futures::{future, Future, Stream};
 use tokio_core::reactor::{Handle, Remote, Core, Timeout};
-use hyper::status::StatusCode;
+use hyper::StatusCode;
 
 use screeps_api::{self, TokenStorage, ArcTokenStorage};
 
@@ -269,7 +269,8 @@ impl ThreadedHandler {
         disk_cache.start_cache_clean_task(&handle).expect("expected starting database cleanup interval to succeed");
 
         let hyper = hyper::Client::configure()
-            .connector(hyper_tls::HttpsConnector::new(4, &handle))
+            .connector(hyper_tls::HttpsConnector::new(4, &handle)
+                .expect("expected HTTPS handler construction with default parameters to succeed."))
             .build(&handle);
 
         let client = screeps_api::Api::with_tokens(hyper, tokens);

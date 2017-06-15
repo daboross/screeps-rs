@@ -29,8 +29,8 @@ rusttype = "0.2"
 futures = "0.1"
 futures-cpupool = "0.1"
 tokio-core = "0.1"
-hyper = { git = "https://github.com/hyperium/hyper.git" }
-hyper-tls = { git = "https://github.com/hyperium/hyper-tls.git" }
+hyper = "0.11"
+hyper-tls = "0.1"
 screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git" }
 # Caching
 time = "0.1"
