@@ -3,17 +3,19 @@
 //! This currently only supports a single threaded thread, but work may be done to allow multiple concurrent network
 //! connections.
 
-mod cache;
-mod request;
-mod single_threaded;
+pub mod cache;
+pub mod types;
+pub mod request;
+mod tokio;
 
 use std::sync::Arc;
 use std::fmt;
 
 pub use self::request::{Request, NetworkEvent};
-pub use self::cache::{LoginState, ErrorEvent, MemCache};
+pub use self::cache::{LoginState, ErrorEvent, MemCache, NetworkedMemCache};
+pub use self::types::{SelectedRooms, MapCache, MapCacheData};
 
-pub use self::single_threaded::Handler as ThreadedHandler;
+pub use self::tokio::Handler as ThreadedHandler;
 
 /// The backend connection handler for handling requests.
 pub trait ScreepsConnection {
@@ -33,7 +35,7 @@ pub trait ScreepsConnection {
 pub struct NotLoggedIn;
 
 /// Login username/password.
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct LoginDetails {
     inner: Arc<(String, String)>,
 }

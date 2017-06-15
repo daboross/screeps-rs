@@ -15,7 +15,7 @@ use futures::{future, Future, Stream};
 use tokio_core::reactor::{Handle, Remote, Core, Timeout};
 use hyper::StatusCode;
 
-use screeps_api::{self, TokenStorage, ArcTokenStorage};
+use screeps_api::{self, NoToken, TokenStorage, ArcTokenStorage};
 
 use {glutin, hyper, hyper_tls, tokio_core};
 
@@ -171,54 +171,144 @@ impl<C, H, T> TokioExecutor<C, H, T>
           H: screeps_api::HyperClient<C> + 'static + Clone,
           T: TokenStorage
 {
+    fn exec_network(self, request: Request) -> Box<Future<Item = (Self, Request, NetworkEvent), Error = ()> + 'static> {
+        match request {
+            Request::Login { details } => {
+                Box::new(self.client
+                    .login(details.username(), details.password())
+                    .then(move |result| {
+                        let event = NetworkEvent::Login {
+                            username: details.username().to_owned(),
+                            result: result.map(|logged_in| logged_in.return_to(&self.client.tokens)),
+                        };
+
+                        future::ok((self, Request::Login { details: details }, event))
+                    }))
+            }
+            Request::MyInfo => {
+                match self.client.my_info() {
+                    Ok(future) => {
+                        Box::new(future.then(move |result| {
+                            future::ok((self, Request::MyInfo, NetworkEvent::MyInfo { result: result }))
+                        }))
+                    }
+                    Err(NoToken) => {
+                        Box::new(self.client
+                            .login(self.login.username(), self.login.password())
+                            .then(move |login_result| {
+                                match login_result {
+                                    Ok(login_ok) => {
+
+                                        login_ok.return_to(&self.client.tokens);
+                                        // TODO: something here to avoid a race condition!
+                                        Box::new(self.client
+                                            .my_info()
+                                            .expect("just returned token")
+                                            .then(move |result| {
+                                                future::ok((self,
+                                                            Request::MyInfo,
+                                                            NetworkEvent::MyInfo { result: result }))
+                                            })) as
+                                        Box<Future<Item = (Self, Request, NetworkEvent), Error = ()>>
+                                    }
+                                    Err(e) => {
+                                        Box::new(future::ok((self,
+                                                             Request::MyInfo,
+                                                             NetworkEvent::MyInfo { result: Err(e) }))) as
+                                        Box<Future<Item = (Self, Request, NetworkEvent), Error = _>>
+                                    }
+                                }
+                            }))
+                    }
+                }
+            }
+            Request::RoomTerrain { room_name } => {
+                Box::new(self.disk_cache.get_terrain(room_name).then(move |result| {
+                    match result {
+                            Ok(Some(terrain)) => {
+                                Box::new(future::ok((self, Ok(terrain)))) as
+                                Box<Future<Item = (Self, Result<screeps_api::TerrainGrid, screeps_api::Error>),
+                                           Error = ()>>
+                            }
+                            other => {
+                                if let Err(e) = other {
+                                    warn!("error occurred fetching terrain cache: {}", e);
+                                }
+                                Box::new(self.client
+                                    .room_terrain(room_name.to_string())
+                                    .map(|data| data.terrain)
+                                    .then(move |result| {
+                                        if let Ok(ref data) = result {
+                                            self.handle.spawn(self.disk_cache
+                                                .set_terrain(room_name, data)
+                                                .then(|result| {
+                                                    if let Err(e) = result {
+                                                        warn!("error occurred storing to terrain cache: {}", e);
+                                                    }
+                                                    Ok(())
+                                                }));
+                                        }
+                                        future::ok((self, result))
+                                    })) as
+                                Box<Future<Item = (Self, Result<screeps_api::TerrainGrid, screeps_api::Error>),
+                                           Error = ()>>
+                            }
+                        }
+                        .and_then(move |(executor, result)| {
+                            future::ok((executor,
+                                        Request::RoomTerrain { room_name: room_name },
+                                        NetworkEvent::RoomTerrain {
+                                            room_name: room_name,
+                                            result: result,
+                                        }))
+                        })
+                })) as Box<Future<Item = (Self, Request, NetworkEvent), Error = ()>>
+            }
+        }
+    }
+
     fn execute_request(self, request: Request) -> impl Future<Item = (), Error = ()> + 'static {
         use futures::Sink;
 
-        request.exec_with(&self.login, &self.client, &self.disk_cache, &self.handle)
-            .then(move |event_result| -> Box<Future<Item = (), Error = ()> + 'static> {
-                // this should never return an error - in any case though, we should handle the Err case so we
-                // do return the executor.
-                if let Ok(event) = event_result {
-                    if let Some(err) = event.error() {
-                        if let screeps_api::ErrorKind::StatusCode(ref status) = *err.kind() {
-                            if *status == StatusCode::TooManyRequests {
-                                debug!("starting 5-second timeout from TooManyRequests error.");
-                                match Timeout::new(Duration::from_secs(5), &self.handle) {
-                                    Ok(timeout) => {
-                                        return Box::new(timeout.then(|result| {
-                                            if let Err(e) = result {
-                                                warn!("IO error in 5-second timeout! {}", e);
-                                            }
+        self.exec_network(request)
+            .and_then(move |(exec, request, event)| -> Box<Future<Item = (), Error = ()> + 'static> {
 
-                                            debug!("5-second timeout finished.");
+                if let Some(err) = event.error() {
+                    if let screeps_api::ErrorKind::StatusCode(ref status) = *err.kind() {
+                        if *status == StatusCode::TooManyRequests {
+                            debug!("starting 5-second timeout from TooManyRequests error.");
+                            match Timeout::new(Duration::from_secs(5), &exec.handle) {
+                                Ok(timeout) => {
+                                    return Box::new(timeout.then(|result| {
+                                        if let Err(e) = result {
+                                            warn!("IO error in 5-second timeout! {}", e);
+                                        }
 
-                                            self.execute_request(request)
-                                        })) as
-                                               Box<Future<Item = (), Error = ()>>
-                                    }
-                                    Err(e) => {
-                                        warn!("IO error in attempt to start timeout: {}", e);
-                                        warn!("instead of timing out, just letting 429 error fall through instead.");
-                                    }
+                                        debug!("5-second timeout finished.");
+
+                                        exec.execute_request(request)
+                                    })) as Box<Future<Item = (), Error = ()>>
+                                }
+                                Err(e) => {
+                                    warn!("IO error in attempt to start timeout: {}", e);
+                                    warn!("instead of timing out, just letting 429 error fall through instead.");
                                 }
                             }
                         }
                     }
-
-                    match self.send_results.send(event) {
-                        Ok(_) => {
-                            trace!("successfully finished a request.");
-                            self.notify.wakeup_event_loop();
-                        }
-                        Err(_) => {
-                            warn!("failed to send the result of a request.");
-                        }
-                    }
-                } else {
-                    warn!("unexpected () error from calling Request::exec_with!");
                 }
 
-                Box::new(self.executor_return.clone().send(self).then(|result| {
+                match exec.send_results.send(event) {
+                    Ok(_) => {
+                        trace!("successfully finished a request.");
+                        exec.notify.wakeup_event_loop();
+                    }
+                    Err(_) => {
+                        warn!("failed to send the result of a request.");
+                    }
+                }
+
+                Box::new(exec.executor_return.clone().send(exec).then(|result| {
                     if let Err(_) = result {
                         warn!("couldn't return connection token after finishing a request.")
                     };
