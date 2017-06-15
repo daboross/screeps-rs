@@ -1,12 +1,12 @@
 use std::default::Default;
-use std::rc::Rc;
 
 use conrod::{color, Colorable, Positionable, Widget, Rect, Borderable, Sizeable};
 use conrod::widget::*;
 
 use screeps_api;
 
-use network;
+use network::{self, SelectedRooms};
+use super::rendering::MapViewOffset;
 
 use super::super::AppCell;
 use super::{GraphicsState, PanelStates, frame, left_panel_available, AdditionalRender};
@@ -126,44 +126,53 @@ pub fn create_ui(app: &mut AppCell,
                count_x,
                count_y);
 
-        let rooms = (0..count_x)
-            .flat_map(move |rel_x| {
-                (0..count_y).map(move |rel_y| {
-                    let room_name = initial_room + (rel_x, rel_y);
+        // let rooms = (0..count_x)
+        //     .flat_map(move |rel_x| {
+        //         (0..count_y).map(move |rel_y| {
+        //             let room_name = initial_room + (rel_x, rel_y);
 
-                    let x = view_rect.left() + extra_scroll_x + (rel_x as f64) * room_size;
-                    let y = view_rect.bottom() + extra_scroll_y + (rel_y as f64) * room_size;
+        //             let x = view_rect.left() + extra_scroll_x + (rel_x as f64) * room_size;
+        //             let y = view_rect.bottom() + extra_scroll_y + (rel_y as f64) * room_size;
 
-                    (room_name, Rect::from_corners([x, y], [x + room_size, y + room_size]))
-                })
-            })
-            .flat_map(|(room_name, rect)| match net.room_terrain(room_name) {
-                Some(terrain) => {
-                    debug!("found room terrain {}", room_name);
-                    Some((rect, terrain.clone()))
-                }
-                None => {
-                    debug!("didn't find room terrain {}", room_name);
-                    None
-                }
-            })
-            .collect::<Vec<(Rect, Rc<screeps_api::TerrainGrid>)>>();
+        //             (room_name, Rect::from_corners([x, y], [x + room_size, y + room_size]))
+        //         })
+        //     })
+        //     .flat_map(|(room_name, rect)| match net.room_terrain(room_name) {
+        //         Some(terrain) => {
+        //             debug!("found room terrain {}", room_name);
+        //             Some((rect, terrain.clone()))
+        //         }
+        //         None => {
+        //             debug!("didn't find room terrain {}", room_name);
+        //             None
+        //         }
+        //     })
+        //     .collect::<Vec<(Rect, Rc<screeps_api::TerrainGrid>)>>();
 
-        // fetch rooms just outside the boundary as well so we can have smoother scrolling
-        for &rel_x in [-1, count_x + 1].iter() {
-            for rel_y in -1..count_y + 1 {
-                let _ = net.room_terrain(initial_room + (rel_x, rel_y));
-            }
-        }
-        for &rel_y in [-1, count_y + 1].iter() {
-            for rel_x in -1..count_x + 1 {
-                let _ = net.room_terrain(initial_room + (rel_x, rel_y));
-            }
-        }
+        // // fetch rooms just outside the boundary as well so we can have smoother scrolling
+        // for &rel_x in [-1, count_x + 1].iter() {
+        //     for rel_y in -1..count_y + 1 {
+        //         let _ = net.room_terrain(initial_room + (rel_x, rel_y));
+        //     }
+        // }
+        // for &rel_y in [-1, count_y + 1].iter() {
+        //     for rel_x in -1..count_x + 1 {
+        //         let _ = net.room_terrain(initial_room + (rel_x, rel_y));
+        //     }
+        // }
 
-        if !rooms.is_empty() {
-            *app.additional_rendering = Some(AdditionalRender::room_grid(ids.body, rooms));
-        }
+        // if !rooms.is_empty() {
+        //     *app.additional_rendering = Some(AdditionalRender::room_grid(ids.body, rooms));
+        // }
+
+        let rooms_to_fetch = SelectedRooms::new((initial_room - (1, 1))..(initial_room + (count_x + 1, count_y + 1)));
+
+        let room_data = net.view_rooms(rooms_to_fetch).clone();
+
+        let rooms_to_view = SelectedRooms::new(initial_room..(initial_room + (count_x, count_y)));
+        let offset = MapViewOffset::new(extra_scroll_x, extra_scroll_y, room_size);
+
+        *app.additional_rendering = Some(AdditionalRender::map_view(ids.body, rooms_to_view, room_data, offset));
     }
 
     if bail {

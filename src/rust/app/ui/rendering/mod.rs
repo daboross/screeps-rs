@@ -1,19 +1,33 @@
 use std::marker::PhantomData;
-use std::rc::Rc;
+use std::cell::Ref;
 
-use conrod::{widget, Rect, Color};
-use conrod::render::{PrimitiveWalker, Primitive, PrimitiveKind};
-use screeps_api::RoomName;
-use screeps_api::endpoints::room_terrain::{TerrainGrid, TerrainType};
+use conrod::widget;
+use conrod::render::{PrimitiveWalker, Primitive};
 
-const WALL_COLOR: Color = Color::Rgba(0.07, 0.07, 0.07, 1.0);
-const SWAMP_COLOR: Color = Color::Rgba(0.16, 0.17, 0.09, 1.0);
-const PLAINS_COLOR: Color = Color::Rgba(0.17, 0.17, 0.17, 1.0);
+use network::{SelectedRooms, MapCacheData, MapCache};
+
+pub mod constants;
+mod map_view;
+
+pub use self::map_view::MapViewOffset;
 
 #[derive(Clone, Debug)]
 pub enum AdditionalRenderType {
-    Room(RoomName, Rc<TerrainGrid>),
-    Rooms(Vec<(Rect, Rc<TerrainGrid>)>),
+    MapView((SelectedRooms, MapCache, MapViewOffset)),
+}
+
+enum BorrowedRenderType<'a> {
+    MapView((SelectedRooms, Ref<'a, MapCacheData>, MapViewOffset)),
+}
+
+impl<'a> Clone for BorrowedRenderType<'a> {
+    fn clone(&self) -> Self {
+        match *self {
+            BorrowedRenderType::MapView((rooms, ref data, offset)) => {
+                BorrowedRenderType::MapView((rooms, Ref::clone(data), offset))
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -23,113 +37,45 @@ pub struct AdditionalRender {
     _phantom: PhantomData<()>,
 }
 
-pub struct MergedPrimitives<T: Sized> {
-    custom: Option<AdditionalRender>,
-    currently_replacing: Option<Box<Iterator<Item = Primitive<'static>>>>,
+#[derive(Clone)]
+struct BorrowedRender<'a> {
+    replace: widget::Id,
+    draw_type: BorrowedRenderType<'a>,
+}
+
+pub struct MergedPrimitives<'a, T: Sized> {
+    custom: Option<BorrowedRender<'a>>,
+    currently_replacing: Option<Box<Iterator<Item = Primitive<'static>> + 'a>>,
     walker: T,
 }
 
-struct RcTerrainIterator {
-    x: u8,
-    y: u8,
-    inner: Rc<TerrainGrid>,
-}
-
-impl RcTerrainIterator {
-    fn new(terrain: Rc<TerrainGrid>) -> Self {
-        assert_eq!(terrain.len(), 50);
-
-        assert_eq!(terrain[0].len(), 50);
-
-        RcTerrainIterator {
-            x: 0,
-            y: 0,
-            inner: terrain,
-        }
-    }
-}
-
-impl Iterator for RcTerrainIterator {
-    /// (x, y, type)
-    type Item = (u8, u8, TerrainType);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.y == 50 {
-            return None;
-        }
-        let item = (self.x, self.y, self.inner[self.y as usize][self.x as usize]);
-
-        if self.x < 49 {
-            self.x += 1;
-        } else {
-            self.x = 0;
-            self.y += 1;
-            if self.y < 50 {
-                assert_eq!(self.inner[self.y as usize].len(), 50);
-            }
-        }
-
-        Some(item)
-    }
-}
-
-fn render_terrain(id: widget::Id,
-                  rect: Rect,
-                  scizzor: Rect,
-                  terrain: Rc<TerrainGrid>)
-                  -> impl Iterator<Item = Primitive<'static>> {
-    debug!("rendering room at {:?}", rect);
-    let (width, height) = rect.w_h();
-    let size_unit = f64::min(width / 50.0, height / 50.0);
-    // conrod has rectangles by default constructed from the center position not the lower left...
-    let left_edge = rect.left();
-    let bottom_edge = rect.bottom();
-
-    RcTerrainIterator::new(terrain).map(move |(x, y, tile)| {
-        let x_pos = left_edge + (x as f64) * size_unit;
-        let y_pos = bottom_edge + (y as f64) * size_unit;
-
-        Primitive {
-            id: id,
-            kind: PrimitiveKind::Rectangle {
-                color: match tile {
-                    TerrainType::Plains => PLAINS_COLOR,
-                    TerrainType::Wall | TerrainType::SwampyWall => WALL_COLOR,
-                    TerrainType::Swamp => SWAMP_COLOR,
-                },
-            },
-            scizzor: scizzor,
-            rect: Rect::from_corners([x_pos, y_pos], [x_pos + size_unit, y_pos + size_unit]),
-        }
-    })
-}
-
 impl AdditionalRender {
-    pub fn room(replace: widget::Id, name: RoomName, terrain: Rc<TerrainGrid>) -> Self {
+    pub fn map_view(replace: widget::Id, rooms: SelectedRooms, cache: MapCache, offset: MapViewOffset) -> Self {
         AdditionalRender {
             replace: replace,
-            draw_type: AdditionalRenderType::Room(name, terrain),
+            draw_type: AdditionalRenderType::MapView((rooms, cache, offset)),
             _phantom: PhantomData,
         }
     }
 
-    pub fn room_grid(replace: widget::Id, rooms: Vec<(Rect, Rc<TerrainGrid>)>) -> Self {
-        AdditionalRender {
-            replace: replace,
-            draw_type: AdditionalRenderType::Rooms(rooms),
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn merged_walker<T: PrimitiveWalker>(self, walker: T) -> MergedPrimitives<T> {
+    pub fn merged_walker<T: PrimitiveWalker>(&self, walker: T) -> MergedPrimitives<T> {
         MergedPrimitives {
-            custom: Some(self),
+            custom: Some(BorrowedRender {
+                replace: self.replace,
+                draw_type: match self.draw_type {
+                    AdditionalRenderType::MapView((rooms, ref cache, offset)) => {
+                        BorrowedRenderType::MapView((rooms, cache.borrow(), offset))
+                    }
+                },
+            }),
             currently_replacing: None,
             walker: walker,
         }
     }
+}
 
-    pub fn into_primitives(self, replacing_primitive: Primitive) -> Box<Iterator<Item = Primitive<'static>>> {
+impl<'a> BorrowedRender<'a> {
+    pub fn into_primitives(self, replacing_primitive: &Primitive) -> Box<Iterator<Item = Primitive<'static>> + 'a> {
         let parent_rect = replacing_primitive.rect;
         let parent_scizzor = replacing_primitive.scizzor;
 
@@ -137,20 +83,19 @@ impl AdditionalRender {
                parent_rect,
                parent_scizzor);
 
-        let AdditionalRender { replace, draw_type, .. } = self;
+        let BorrowedRender { replace, draw_type, .. } = self;
+
+        let scizzor = parent_scizzor.overlap(parent_rect).unwrap_or(parent_scizzor);
 
         match draw_type {
-            AdditionalRenderType::Room(_, grid) => Box::new(render_terrain(replace, parent_rect, parent_scizzor, grid)),
-            AdditionalRenderType::Rooms(list) => {
-                let scizzor = parent_scizzor.overlap(parent_rect).unwrap_or(parent_scizzor);
-                Box::new(list.into_iter()
-                    .flat_map(move |(rect, grid)| render_terrain(replace, rect, scizzor, grid)))
+            BorrowedRenderType::MapView(parameters) => {
+                Box::new(map_view::render(replace, parent_rect, scizzor, parameters))
             }
         }
     }
 }
 
-impl<T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<T> {
+impl<'a, T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<'a, T> {
     fn next_primitive(&mut self) -> Option<Primitive> {
         if let Some(ref mut iter) = self.currently_replacing {
             if let Some(p) = iter.next() {
@@ -167,11 +112,11 @@ impl<T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<T> {
                     debug!("found correct id");
                     let c = self.custom.clone().unwrap();
 
-                    let mut iter = c.into_primitives(p);
-                    let first = iter.next().expect("expected at least one rendering primitive in list of primitives");
+                    let mut iter = c.into_primitives(&p);
+                    let first = iter.next();
                     self.currently_replacing = Some(iter);
 
-                    Some(first)
+                    Some(first.unwrap_or(p))
                 } else {
                     Some(p)
                 }

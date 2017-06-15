@@ -1,12 +1,13 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::rc::Rc;
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
-use screeps_api;
+use screeps_api::{self, RoomName};
 use time::{self, Duration};
 
-use super::{LoginState, ErrorEvent};
-use super::super::{Request, NetworkEvent, ScreepsConnection};
+use network::{LoginState, ErrorEvent, MapCacheData, SelectedRooms, NetworkEvent, Request, ScreepsConnection};
 
 #[derive(Copy, Clone, Debug)]
 struct TimeoutValue<T> {
@@ -79,10 +80,13 @@ impl<T> TimeoutValue<T> {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct MemCache {
     login: TimeoutValue<()>,
     my_info: TimeoutValue<screeps_api::MyInfo>,
-    terrain: HashMap<screeps_api::RoomName, TimeoutValue<Rc<screeps_api::endpoints::room_terrain::TerrainGrid>>>,
+    rooms: Rc<RefCell<MapCacheData>>,
+    requested_rooms: HashMap<RoomName, time::Timespec>,
+    last_requested_room_info: Option<SelectedRooms>,
 }
 
 pub struct NetworkedMemCache<'a, T: ScreepsConnection + 'a, F: FnMut(ErrorEvent) + 'a> {
@@ -93,27 +97,23 @@ pub struct NetworkedMemCache<'a, T: ScreepsConnection + 'a, F: FnMut(ErrorEvent)
 
 impl MemCache {
     pub fn new() -> Self {
-        MemCache {
-            login: TimeoutValue::default(),
-            my_info: TimeoutValue::default(),
-            terrain: HashMap::new(),
-        }
+        Self::default()
     }
 
-    fn event(&mut self, event: NetworkEvent) -> Option<ErrorEvent> {
-        let err = match event {
-            NetworkEvent::Login { username: _, result } => self.login.event(result).err(),
-            NetworkEvent::MyInfo { result } => self.my_info.event(result).err(),
+    fn event(&mut self, event: NetworkEvent) -> Result<(), ErrorEvent> {
+        match event {
+            NetworkEvent::Login { username: _, result } => self.login.event(result)?,
+            NetworkEvent::MyInfo { result } => self.my_info.event(result)?,
             NetworkEvent::RoomTerrain { room_name, result } => {
-                self.terrain
-                    .entry(room_name)
-                    .or_insert_with(TimeoutValue::default)
-                    .event(result.map(Rc::new))
-                    .err()
+                let terrain = result?;
+                self.rooms
+                    .borrow_mut()
+                    .terrain
+                    .insert(room_name, (time::get_time(), terrain));
             }
-        };
+        }
 
-        err.map(ErrorEvent::ErrorOccurred)
+        Ok(())
     }
 
     pub fn login_state(&self) -> LoginState {
@@ -135,7 +135,7 @@ impl MemCache {
     {
         while let Some(evt) = handler.poll() {
             debug!("[cache] Got event {:?}", evt);
-            if let Some(e) = self.event(evt) {
+            if let Err(e) = self.event(evt) {
                 error_callback(e);
             }
         }
@@ -170,18 +170,27 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
         holder.get()
     }
 
-    pub fn room_terrain(&mut self,
-                        room_name: screeps_api::RoomName)
-                        -> Option<&Rc<screeps_api::endpoints::room_terrain::TerrainGrid>> {
-        let holder = self.cache.terrain.entry(room_name).or_insert_with(TimeoutValue::default);
+    pub fn view_rooms(&mut self, rooms: SelectedRooms) -> &Rc<RefCell<MapCacheData>> {
+        if Some(rooms) != self.cache.last_requested_room_info {
+            let borrowed = Ref::map(self.cache.rooms.borrow(), |cache| &cache.terrain);
+            let rerequest_if_before = time::get_time() - Duration::seconds(90);
+            for room_name in rooms {
+                if !borrowed.contains_key(&room_name) {
+                    let resend = match self.cache
+                        .requested_rooms
+                        .get(&room_name) {
+                        Some(v) => v < &rerequest_if_before,
+                        None => true,
+                    };
 
-        if holder.should_request(Some(Duration::minutes(360)), Duration::seconds(30)) {
-            if let Err(e) = self.handler.send(Request::room_terrain(room_name)) {
-                (self.error_callback)(e.into())
+                    if resend {
+                        if let Err(e) = self.handler.send(Request::room_terrain(room_name)) {
+                            (self.error_callback)(e.into())
+                        }
+                    }
+                }
             }
-            holder.requested();
         }
-
-        holder.get()
+        &self.cache.rooms
     }
 }
