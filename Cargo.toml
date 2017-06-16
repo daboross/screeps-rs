@@ -60,3 +60,4 @@ doc = false
 [replace]
 "arrayvec:0.3.23" = { git = "https://github.com/daboross/arrayvec.git", branch = "serde-0.3" }
 "petgraph:0.2.9" = { git = "https://github.com/daboross/petgraph.git", branch = "fix-0.2-2017-06-14-nightly" }
+"rusttype:0.2.1" = { git = "https://github.com/daboross/rusttype.git", branch = "possibly-fix-rasterizer-akashi-font" }
