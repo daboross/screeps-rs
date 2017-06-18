@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use screeps_api;
+use {screeps_api, websocket};
+
+use network::SelectedRooms;
 
 use self::Request::*;
 
@@ -11,6 +13,7 @@ pub enum Request {
     Login { details: LoginDetails },
     MyInfo,
     RoomTerrain { room_name: screeps_api::RoomName },
+    SetMapSubscribes { rooms: SelectedRooms },
 }
 
 impl Request {
@@ -25,13 +28,16 @@ impl Request {
         Login { details: details }
     }
 
-
     pub fn my_info() -> Self {
         Request::MyInfo
     }
 
     pub fn room_terrain(room_name: screeps_api::RoomName) -> Self {
         RoomTerrain { room_name: room_name }
+    }
+
+    pub fn subscribe_map_view(rooms: SelectedRooms) -> Self {
+        SetMapSubscribes { rooms: rooms }
     }
 }
 
@@ -46,6 +52,13 @@ pub enum NetworkEvent {
         room_name: screeps_api::RoomName,
         result: Result<screeps_api::TerrainGrid, screeps_api::Error>,
     },
+    WebsocketHttpError { error: screeps_api::Error },
+    WebsocketError { error: websocket::WebSocketError },
+    WebsocketParseError { error: screeps_api::websocket::parsing::ParseError, },
+    MapView {
+        room_name: screeps_api::RoomName,
+        result: screeps_api::websocket::RoomMapViewUpdate,
+    },
 }
 
 
@@ -55,6 +68,10 @@ impl NetworkEvent {
             NetworkEvent::Login { ref result, .. } => result.as_ref().err(),
             NetworkEvent::MyInfo { ref result, .. } => result.as_ref().err(),
             NetworkEvent::RoomTerrain { ref result, .. } => result.as_ref().err(),
+            NetworkEvent::WebsocketHttpError { ref error } => Some(error),
+            NetworkEvent::MapView { .. } |
+            NetworkEvent::WebsocketError { .. } |
+            NetworkEvent::WebsocketParseError { .. } => None,
         }
     }
 }

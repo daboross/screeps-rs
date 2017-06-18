@@ -1,6 +1,6 @@
 use std::fmt;
 
-use screeps_api;
+use {screeps_api, websocket};
 
 pub use self::memory::{MemCache, NetworkedMemCache};
 
@@ -10,6 +10,8 @@ pub mod disk;
 pub enum ErrorEvent {
     NotLoggedIn,
     ErrorOccurred(screeps_api::Error),
+    WebsocketError(websocket::WebSocketError),
+    WebsocketParse(screeps_api::websocket::parsing::ParseError),
 }
 
 impl From<screeps_api::NoToken> for ErrorEvent {
@@ -30,6 +32,12 @@ impl From<screeps_api::Error> for ErrorEvent {
     }
 }
 
+impl From<screeps_api::websocket::parsing::ParseError> for ErrorEvent {
+    fn from(err: screeps_api::websocket::parsing::ParseError) -> ErrorEvent {
+        ErrorEvent::WebsocketParse(err)
+    }
+}
+
 impl fmt::Display for ErrorEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -38,6 +46,8 @@ impl fmt::Display for ErrorEvent {
                        "network connection attempted that is not available without logging in.")
             }
             ErrorEvent::ErrorOccurred(ref e) => e.fmt(f),
+            ErrorEvent::WebsocketError(ref e) => e.fmt(f),
+            ErrorEvent::WebsocketParse(ref e) => e.fmt(f),
         }
     }
 }

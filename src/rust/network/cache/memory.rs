@@ -111,6 +111,12 @@ impl MemCache {
                     .terrain
                     .insert(room_name, (time::get_time(), terrain));
             }
+            NetworkEvent::MapView { room_name, result } => {
+                self.rooms.borrow_mut().map_views.insert(room_name, (time::get_time(), result));
+            }
+            NetworkEvent::WebsocketError { error } => return Err(ErrorEvent::WebsocketError(error)),
+            NetworkEvent::WebsocketHttpError { error } => return Err(ErrorEvent::ErrorOccurred(error)),
+            NetworkEvent::WebsocketParseError { error } => return Err(ErrorEvent::WebsocketParse(error)),
         }
 
         Ok(())
@@ -189,6 +195,9 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
                         }
                     }
                 }
+            }
+            if let Err(e) = self.handler.send(Request::subscribe_map_view(rooms)) {
+                (self.error_callback)(e.into())
             }
         }
         &self.cache.rooms

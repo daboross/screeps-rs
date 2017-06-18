@@ -35,6 +35,12 @@ impl SelectedRooms {
     }
 
     #[inline]
+    pub fn contains(&self, room: &RoomName) -> bool {
+        (self.start.x_coord < room.x_coord && room.x_coord < self.end.x_coord) &&
+        (self.start.y_coord < room.y_coord && room.y_coord < self.end.y_coord)
+    }
+
+    #[inline]
     pub fn set_focus<T: Into<Option<RoomName>>>(&mut self, room: T) {
         self.focused_room = room.into();
     }
@@ -92,7 +98,8 @@ pub struct MapCacheData {
     // TODO: should we be re-fetching terrain at some point, or is it alright to leave it forever in memory?
     // The client can always restart to clear this.
     pub terrain: HashMap<RoomName, (time::Timespec, screeps_api::TerrainGrid)>,
-    pub map_views: HashMap<RoomName, screeps_api::websocket::RoomMapViewUpdate>,
+    /// Map views, the Timespec is when the data was fetched.
+    pub map_views: HashMap<RoomName, (time::Timespec, screeps_api::websocket::RoomMapViewUpdate)>,
 }
 
 pub type MapCache = Rc<RefCell<MapCacheData>>;

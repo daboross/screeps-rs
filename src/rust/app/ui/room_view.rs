@@ -73,6 +73,12 @@ pub fn create_ui(app: &mut AppCell,
                 // TODO: do a "notification bar" side thing in the app with these.
                 warn!("network error occurred: {}", e);
             }
+            network::ErrorEvent::WebsocketError(e) => {
+                warn!("network error occurred: {}", e);
+            }
+            network::ErrorEvent::WebsocketParse(e) => {
+                warn!("network error occurred: {}", e);
+            }
         });
         if let Some(info) = net.my_info() {
             Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))

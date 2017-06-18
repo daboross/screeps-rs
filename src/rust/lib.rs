@@ -11,6 +11,7 @@ extern crate futures;
 extern crate tokio_core;
 extern crate hyper;
 extern crate hyper_tls;
+extern crate websocket;
 extern crate screeps_api;
 // Caching
 extern crate time;

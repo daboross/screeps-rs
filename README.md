@@ -11,19 +11,19 @@ Screeps is a true programming MMO where users uploading JavaScript code to power
 
 This client is built on two main projects:
 - [`rust-screeps-api`] implements networking and parsing of network results
-- and [`screeps-rs`] (this repository) implements rendering and a UI on top of that
-
-[`screeps-rs`] can:
-
-- Connect to screeps.com
-- Successfully authenticate
-- Render basic room terrain and user information.
+- [`screeps-rs`] implements rendering and a UI
 
 [`rust-screeps-api`] can:
 
 - Connect to screeps.com with HTTP calls and websocket connections
 - Authenticate
 - Retrieve room terrain, map room overviews, basic user information and some room details.
+
+[`screeps-rs`] can:
+
+- Connect to screeps.com
+- Login through a UI
+- Render basic room terrain and user information.
 
 Eventually, this will be able to connect to both the [official server][screeps] and any [private server][screeps-os] instances run by users.
 
