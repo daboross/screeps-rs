@@ -7,7 +7,7 @@ dependencies = [
  "bincode 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.24.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "conrod 0.52.0 (git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes)",
+ "conrod 0.53.0 (git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes)",
  "fern 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -240,10 +240,10 @@ dependencies = [
 
 [[package]]
 name = "conrod"
-version = "0.52.0"
-source = "git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes#7bcb6f017b3c214b0715e69ef692ab6c28da84af"
+version = "0.53.0"
+source = "git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes#ee433847afabe8d659824e1bbf5c63435ced66a1"
 dependencies = [
- "daggy 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "daggy 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -300,10 +300,10 @@ dependencies = [
 
 [[package]]
 name = "daggy"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "petgraph 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "petgraph 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -840,17 +840,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "petgraph"
-version = "0.2.9"
-source = "git+https://github.com/daboross/petgraph.git?branch=fix-0.2-2017-06-14-nightly#447abefff89154bf40a6e31c340fcee7d9b0f885"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "fixedbitset 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "petgraph"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-replace = "petgraph 0.2.9 (git+https://github.com/daboross/petgraph.git?branch=fix-0.2-2017-06-14-nightly)"
 
 [[package]]
 name = "phf"
@@ -1556,13 +1550,13 @@ dependencies = [
 "checksum coco 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c06169f5beb7e31c7c67ebf5540b8b472d23e3eade3b2ec7d1f5b504a85f91bd"
 "checksum cocoa 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3afe4613f57a171039a98db1773f5840b5743cf85aaf03afb65ddfade4f4a9db"
 "checksum cocoa 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1e1be5fd98bb7e8ef0eea233a4984f4e85ecdcfa002a90b8b12b7a20faf44dc1"
-"checksum conrod 0.52.0 (git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes)" = "<none>"
+"checksum conrod 0.53.0 (git+https://github.com/daboross/conrod.git?branch=add-password-text-boxes)" = "<none>"
 "checksum core-foundation 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "25bfd746d203017f7d5cbd31ee5d8e17f94b6521c7af77ece6c9e4b2d4b16c67"
 "checksum core-foundation-sys 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "065a5d7ffdcbc8fa145d6f0746f3555025b9097a9e9cda59f7467abae670c78d"
 "checksum core-graphics 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "0c56c6022ba22aedbaa7d231be545778becbe1c7aceda4c82ba2f2084dd4c723"
 "checksum core-graphics 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "66e998abb8823fecd2a8a7205429b17a340d447d8c69b3bce86846dcdea3e33b"
 "checksum crypt32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e34988f7e069e0b2f3bfc064295161e489b2d4e04a2e4248fb94360cdf00b4ec"
-"checksum daggy 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d6a9b61ac11d223e884f431772d311087644e4710c1555d7db270cefb5fb9c69"
+"checksum daggy 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9293a0da7d1bc1f30090ece4d9f9de79a07be7302ddb00e5eb1fefb6ee6409e2"
 "checksum dbghelp-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "97590ba53bcb8ac28279161ca943a924d1fd4a8fb3fa63302591647c4fc5b850"
 "checksum dlib 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "148bce4ce1c36c4509f29cb54e62c2bd265551a9b00b38070fad551a851866ec"
 "checksum dtoa 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "80c8b71fd71146990a9742fc06dcbbde19161a267e0ad4e572c35162f4578c90"
@@ -1624,8 +1618,7 @@ dependencies = [
 "checksum openssl-sys 0.9.14 (registry+https://github.com/rust-lang/crates.io-index)" = "236c718c2e2c2b58a546d86ffea5194400bb15dbe01ca85325ffd357b03cf66c"
 "checksum osmesa-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "88cfece6e95d2e717e0872a7f53a8684712ad13822a7979bc760b9c77ec0013b"
 "checksum percent-encoding 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de154f638187706bde41d9b4738748933d64e6b37bdbffc0b47a97d16a6ae356"
-"checksum petgraph 0.2.9 (git+https://github.com/daboross/petgraph.git?branch=fix-0.2-2017-06-14-nightly)" = "<none>"
-"checksum petgraph 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)" = "1a6f465be0adaa474e5692d4cb24732382476bb75fa84798b9f8fd820e1ad6e6"
+"checksum petgraph 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "14c6ae5ccb73b438781abc93d35615019b1ad6e24b44116377fb819cfd7587de"
 "checksum phf 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "cb325642290f28ee14d8c6201159949a872f220c62af6e110a56ea914fbe42fc"
 "checksum phf_codegen 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "d62594c0bb54c464f633175d502038177e90309daf2e0158be42ed5f023ce88f"
 "checksum phf_generator 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "6b07ffcc532ccc85e3afc45865469bf5d9e4ef5bfcf9622e3cfe80c2d275ec03"
