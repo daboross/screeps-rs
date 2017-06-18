@@ -492,7 +492,7 @@ mod read {
         fn send(&self, event: NetworkEvent) -> Result<(), ExitNow> {
             match self.send_results.send(event) {
                 Ok(()) => self.notify.wakeup_event_loop(),
-                Err(event) => {
+                Err(_) => {
                     debug!("sending websocket event to main thread failed, exiting.");
                     return Err(ExitNow);
                 }
@@ -523,7 +523,7 @@ mod read {
             match message {
                 Ok(m) => self.event_websocket_message(m),
                 Err(e) => {
-                    self.send(NetworkEvent::WebsocketError { error: e });
+                    self.send(NetworkEvent::WebsocketError { error: e })?;
 
                     Ok(())
                 }
@@ -538,7 +538,7 @@ mod read {
                             self.event_sockjs_message(message)?;
                         }
                         Err(e) => {
-                            self.send(NetworkEvent::WebsocketParseError { error: e });
+                            self.send(NetworkEvent::WebsocketParseError { error: e })?;
                         }
                     }
                 }
@@ -586,7 +586,7 @@ mod read {
                 ScreepsMessage::AuthFailed => {
                     warn!("received 'auth failed' message from inside main handler, \
                            which only operates after auth response has been received.");
-                    self.send(NetworkEvent::WebsocketHttpError { error: screeps_api::ErrorKind::Unauthorized.into() });
+                    self.send(NetworkEvent::WebsocketHttpError { error: screeps_api::ErrorKind::Unauthorized.into() })?;
                 }
                 ScreepsMessage::AuthOk { new_token } => {
                     self.tokens.return_token(new_token);
@@ -610,7 +610,7 @@ mod read {
                         result: update,
                     };
                     debug!("received map view update for {}!", room_name);
-                    self.send(event);
+                    self.send(event)?;
                 }
                 other => {
                     warn!("received unexpected channel update: {:#?}", other);
