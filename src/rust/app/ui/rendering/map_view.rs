@@ -270,8 +270,8 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                                 },
                             },
                             scizzor: self.render_scizzor,
-                            rect: Rect::from_corners([x_pos, y_pos],
-                                                     [x_pos + terrain_square_length, y_pos + terrain_square_length]),
+                            rect: Rect::from_corners([x_pos, y_pos - terrain_square_length],
+                                                     [x_pos + terrain_square_length, y_pos]),
                         }
                     };
 
@@ -340,11 +340,12 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                         let terrain_square_length = room_screen_size / 50.0;
 
                         let x_pos = start_room_screen_pos.0 +
-                                    room_screen_size * (current_relative_room_x as f64 + ((in_room_x as f64) / 50.0)) +
+                                    room_screen_size *
+                                    (current_relative_room_x as f64 + (((in_room_x as f64) - 1.0) / 50.0)) +
                                     terrain_square_length;
                         let y_pos = start_room_screen_pos.1 +
                                     room_screen_size *
-                                    (current_relative_room_y as f64 + (((50 - in_room_y) as f64) / 50.0)) +
+                                    (current_relative_room_y as f64 + ((49.0 - (in_room_y as f64)) / 50.0)) +
                                     terrain_square_length;
 
                         let visual_length = terrain_square_length;
@@ -353,8 +354,8 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                             id: render_id,
                             kind: PrimitiveKind::Rectangle { color: color },
                             scizzor: render_scizzor,
-                            rect: Rect::from_corners([x_pos, y_pos],
-                                                     [x_pos + visual_length, y_pos + visual_length]),
+                            rect: Rect::from_corners([x_pos, y_pos - visual_length],
+                                                     [x_pos + visual_length, y_pos]),
                         }
                     }
                 };
