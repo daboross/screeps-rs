@@ -1,6 +1,6 @@
 [package]
 name = "screeps-rs"
-version = "0.1.2-dev"
+version = "0.1.2"
 authors = ["David Ross <daboross@daboross.net>"]
 description = "WIP native Screeps client using Rust and Conrod."
 
