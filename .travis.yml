@@ -58,8 +58,13 @@ script:
   if $RUN_TEST; then
       cargo test --verbose
   fi
+- |
+  # cargo build --release
+  if [[ ($DEPLOY_ONLY = true || -z $TEST_ONLY) && -n $TRAVIS_TAG ]]; then
+      cargo build --verbose --release -j 1
+  fi
 before_deploy:
-- travis_wait 40 cargo build --release
+- cargo build --verbose --release -j 1
 - tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
 deploy:
     provider: releases
