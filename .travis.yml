@@ -14,25 +14,48 @@ matrix:
       os: osx
 before_script:
 - |
+  # set RUN_TEST
   if [[ ($TEST_ONLY = true || (-z $DEPLOY_ONLY || -n $TRAVIS_TAG)) ]]; then
       RUN_TEST=true
   else
       RUN_TEST=false
   fi
 - |
+  # set TEST_FMT
   if [[ ($TEST_ONLY = true || -z $DEPLOY_ONLY) && -z $TRAVIS_TAG ]]; then
       TEST_FMT=true
   else
       TEST_FMT=false
   fi
 - export PATH="$PATH:$HOME/.cargo/bin"
-- $TEST_FMT && (which rustfmt || travis_wait cargo install rustfmt -j 1 --verbose --vers 0.7.1)
-- $TEST_FMT && rustfmt --version
+- |
+  # cargo install rustfmt
+  if $TEST_FMT && ! which rustfmt; then
+      echo "installing rustfmt"
+      travis_wait cargo install rustfmt --verbose --vers 0.7.1
+  fi
+- |
+  # rustfmt --version
+  if $TEST_FMT; then
+      rustfmt --version
+  fi
 - c++ --version
 script:
-- $RUN_TEST && travis_wait cargo build -j 1 --verbose
-- $TEST_FMT && cargo fmt --verbose -- --write-mode=diff
-- $RUN_TEST && cargo test --verbose
+- |
+  # cargo build
+  if $RUN_TEST; then
+      travis_wait cargo build --verbose
+  fi
+- |
+  # cargo-fmt --write-mode=diff
+  if $TEST_FMT; then
+      cargo fmt --verbose -- --write-mode=diff
+  fi
+- |
+  # cargo test
+  if $RUN_TEST; then
+      cargo test --verbose
+  fi
 before_deploy:
 - cargo build --release
 - tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
