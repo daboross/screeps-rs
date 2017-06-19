@@ -3,12 +3,45 @@ sudo: false
 dist: trusty
 rust: nightly
 cache: cargo
+matrix:
+    include:
+    - env: TARGET=i686-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-i686
+    - env: TARGET=x86_64-unknown-linux-gnu TEST_ONLY=true
+    - env: TARGET=x86_64-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-x86_64
+    - env: TARGET=i686-apple-darwin DEPLOY_ONLY=true TARGET_DESC=mac-i686
+      os: osx
+    - env: TARGET=x86_64-apple-darwin TARGET_DESC=mac-x86_64
+      os: osx
 before_script:
+- |
+  if [[ ($TEST_ONLY = true || (-z $DEPLOY_ONLY || -n $TRAVIS_TAG)) ]]; then
+      RUN_TEST=true
+  else
+      RUN_TEST=false
+  fi
+- |
+  if [[ ($TEST_ONLY = true || -z $DEPLOY_ONLY) && -z $TRAVIS_TAG ]]; then
+      TEST_FMT=true
+  else
+      TEST_FMT=false
+  fi
 - export PATH="$PATH:$HOME/.cargo/bin"
-- which rustfmt || travis_wait cargo install rustfmt -j 1 --verbose --vers 0.7.1
-- rustfmt --version
+- $TEST_FMT && (which rustfmt || travis_wait cargo install rustfmt -j 1 --verbose --vers 0.7.1)
+- $TEST_FMT && rustfmt --version
 - c++ --version
 script:
-- travis_wait cargo build -j 1 --verbose
-- cargo fmt --verbose -- --write-mode=diff
-- cargo test --verbose
+- $RUN_TEST && travis_wait cargo build -j 1 --verbose
+- $TEST_FMT && cargo fmt --verbose -- --write-mode=diff
+- $RUN_TEST && cargo test --verbose
+before_deploy:
+- cargo build --release
+- tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
+deploy:
+    provider: releases
+    skip_cleanup: true
+    file: "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz"
+    on:
+        condition: ($DEPLOY_ONLY = true || -z $TEST_ONLY)
+        tags: true
+    api_key:
+        secure: "faXcUcc8tnA4dKSammMs0glTCHr7Kv7HLKUSrXVSTB1T9f+Y+Jp1WVmDiX+873QnkH60fHGwVuJQlqTTD7jRc1DLekxoRMFC6+t2Xq3x8lklvqw5W/lJA7tQVpxmfwSbSv4DkTDa6roFTnPVWDyp0MzKn9tzQg3od8k6YDEqw02JEy/0YKSktgHsaAyqAfIXPlxZYO7SbsEqq9uTMPEMNQfD0TdbTcITaL7HWdjesG3f59WEl+yGcmXHc2P9VmHfZ+JkPUzpSbyLaJL6aNUjZ1ZU/meHfxP6w6/PwkXqnX+L5ILnvXoKxXFuFtq+3BDVyHvD7oJJ4+0Ch0qAQZVnncvl2dgKkePWyTplb3a+YiPFF0JwSQWEvX3CN10zmUr7P4GXo4XXIqBIRoDrMFfx7ezc5sP1ekMOHHlqezSF5QDKzShEqzT4ScyoMM+ezDiQaQwMKiFCWgxBr5Sha4PWzuawhih5seqxpKI+SjB0IRveg0ZYrKEbdIlxvod0exc5cxAc+mJBY8fICfrRzVZ47RzftB6lgokMtRYdB60YAcQGpjrLICFA/C5kZQ8QLSQ/gP7USA6HTC0/MfzfppShFkZwoq9wnvP8kPFqzXoSD2pAWt9PaBuJwIz0n5uZYCGlOv+hIOKJ9y03TMCcRbFj/7d+j8GfPYhMoI0tAQ2atnw="

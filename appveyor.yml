@@ -4,8 +4,10 @@
 environment:
     matrix:
     - TARGET: i686-pc-windows-msvc
+      TARGET_DESC: windows-i686
       RUST_VERSION: nightly
     - TARGET: x86_64-pc-windows-msvc
+      TARGET_DESC: windows-x86_64
       RUST_VERSION: nightly
 
 install:
@@ -23,5 +25,16 @@ cache:
 - C:\Users\appveyor\.cargo\registry
 - target
 
-# Disable the appveyor build step so we can just build the rust project instead.
 build: off
+
+before_deploy:
+- cargo build --release --target %TARGET%
+- ps: script\predeploy.ps1
+
+deploy:
+    provider: GitHub
+    artifact: /.*\.zip/
+    auth_token:
+        secure: X18qThheIxFsNHaDdLRJPSZN6e9AlZ8NyNogB+/vISdgUsRHTJYdPF4DHXbA0DxH
+    on:
+        appveyor_repo_tag: true
