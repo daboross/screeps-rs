@@ -18,8 +18,8 @@ install:
 - cargo -V
 
 test_script:
-- cargo build --verbose --target %TARGET%
-- cargo test --verbose --target %TARGET%
+- if "%appveyor_repo_tag%" == false (cargo build --verbose --target %TARGET%)
+- if "%appveyor_repo_tag%" == false (cargo test --verbose --target %TARGET%)
 
 cache:
 - C:\Users\appveyor\.cargo\registry

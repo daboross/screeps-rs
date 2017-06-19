@@ -15,8 +15,9 @@ matrix:
 before_script:
 - |
   # set RUN_TEST
-  if [[ ($TEST_ONLY = true || (-z $DEPLOY_ONLY || -n $TRAVIS_TAG)) ]]; then
+  if [[ (($TEST_ONLY = true || -z $DEPLOY_ONLY) && -z $TRAVIS_TAG) ]]; then
       RUN_TEST=true
+      echo "tests enabled"
   else
       RUN_TEST=false
   fi
@@ -24,6 +25,7 @@ before_script:
   # set TEST_FMT
   if [[ ($TEST_ONLY = true || -z $DEPLOY_ONLY) && -z $TRAVIS_TAG ]]; then
       TEST_FMT=true
+      echo "formatting test enabled"
   else
       TEST_FMT=false
   fi
@@ -57,7 +59,7 @@ script:
       cargo test --verbose
   fi
 before_deploy:
-- cargo build --release
+- travis_wait cargo build --release
 - tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
 deploy:
     provider: releases
