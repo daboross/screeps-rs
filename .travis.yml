@@ -59,7 +59,7 @@ script:
       cargo test --verbose
   fi
 before_deploy:
-- travis_wait cargo build --release
+- travis_wait 40 cargo build --release
 - tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
 deploy:
     provider: releases
