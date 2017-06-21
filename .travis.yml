@@ -5,11 +5,12 @@ rust: nightly
 cache: cargo
 matrix:
     include:
-    - env: TARGET=i686-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-i686
-    - env: TARGET=x86_64-unknown-linux-gnu TEST_ONLY=true
-    - env: TARGET=x86_64-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-x86_64
-    - env: TARGET=i686-apple-darwin DEPLOY_ONLY=true TARGET_DESC=apple-i686
-      os: osx
+    - env: TARGET=x86_64-unknown-linux-gnu TARGET_DESC=linux-x86_64
+    # - env: TARGET=x86_64-unknown-linux-gnu TEST_ONLY=true
+    # - env: TARGET=i686-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-i686
+    # - env: TARGET=x86_64-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-x86_64
+    # - env: TARGET=i686-apple-darwin DEPLOY_ONLY=true TARGET_DESC=apple-i686
+    #   os: osx
     - env: TARGET=x86_64-apple-darwin TARGET_DESC=apple-x86_64
       os: osx
 before_script:
@@ -81,10 +82,10 @@ before_deploy:
 - tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
 deploy:
     provider: releases
-    skip_cleanup: true
+    api_key:
+        secure: rW0srqf05xxlzsgiH0+4HfycQQUWHWldBj5PKno+GpVXF/wPvAekHmhKzq41WC+/j7WpQnLMzI3LDMR9ZLnXjvv5UmOPeN/G90q8rHPocBHk9qTPA24CNNR5/aW26GuQygWhOwItkbdI41E9rQ6DmqnOehw/eVt6XcFax9Bs2X4loDOL6++QuH4IkloFyegQVJxGLCO4wUnKqjNej7dR+EJSlNgHXzpuRpAvpASvQAdf7gi23PFokuMn/sJrqkPArwDWsb1+XRlwVP9GZkOn6aRZxmlb9ijx8cJ3IyD/DqwMT8L8lxGL4qY57W6tL548x1fbEaiMMAEbCjjukXIMuOU1sxR0ZNkWLWVVBgISlAN1eOuFTMZOvexaF8eU5FvdLAKWbH5qWG02p01dNQmJr/1tdfQyWpmr4rskUGTqUNqa6owJQ7d1aTWt26Yo9ZDnun9YpyY1xg6upWU+wi+UVkX/4kSl9TX5HEmSMsJ8ybe4vYbS2KZKDJr5BcUzVORraPBEq0hibyiQNoRD8vaLwloSbvfRLAE2/rSbDtBk2TSwbP5/q/VlSqEN2saNgco8TSzzdDOYdUUETgSHBQO1VPe11NK4cZDF1cBWWQa31t3HpfCVXGG6gmRLkZn/vfCy5qJZNs38Dtq+fPHxZ+EJrPkydJP4v+9eftBHKkjNI0M=
     file: "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz"
     on:
-        condition: ($DEPLOY_ONLY = true || -z $TEST_ONLY)
+        repo: daboross/screeps-rs
         tags: true
-    api_key:
-        secure: "faXcUcc8tnA4dKSammMs0glTCHr7Kv7HLKUSrXVSTB1T9f+Y+Jp1WVmDiX+873QnkH60fHGwVuJQlqTTD7jRc1DLekxoRMFC6+t2Xq3x8lklvqw5W/lJA7tQVpxmfwSbSv4DkTDa6roFTnPVWDyp0MzKn9tzQg3od8k6YDEqw02JEy/0YKSktgHsaAyqAfIXPlxZYO7SbsEqq9uTMPEMNQfD0TdbTcITaL7HWdjesG3f59WEl+yGcmXHc2P9VmHfZ+JkPUzpSbyLaJL6aNUjZ1ZU/meHfxP6w6/PwkXqnX+L5ILnvXoKxXFuFtq+3BDVyHvD7oJJ4+0Ch0qAQZVnncvl2dgKkePWyTplb3a+YiPFF0JwSQWEvX3CN10zmUr7P4GXo4XXIqBIRoDrMFfx7ezc5sP1ekMOHHlqezSF5QDKzShEqzT4ScyoMM+ezDiQaQwMKiFCWgxBr5Sha4PWzuawhih5seqxpKI+SjB0IRveg0ZYrKEbdIlxvod0exc5cxAc+mJBY8fICfrRzVZ47RzftB6lgokMtRYdB60YAcQGpjrLICFA/C5kZQ8QLSQ/gP7USA6HTC0/MfzfppShFkZwoq9wnvP8kPFqzXoSD2pAWt9PaBuJwIz0n5uZYCGlOv+hIOKJ9y03TMCcRbFj/7d+j8GfPYhMoI0tAQ2atnw="
+        condition: ("$DEPLOY_ONLY" = true || -z "$TEST_ONLY")
