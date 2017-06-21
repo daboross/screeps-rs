@@ -89,3 +89,4 @@ deploy:
         repo: daboross/screeps-rs
         tags: true
         condition: ("$DEPLOY_ONLY" = true || -z "$TEST_ONLY")
+    skip_cleanup: true
