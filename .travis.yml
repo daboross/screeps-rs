@@ -6,6 +6,7 @@ cache: cargo
 matrix:
     include:
     - env: TARGET=x86_64-unknown-linux-gnu TARGET_DESC=linux-x86_64
+    - env: TARGET=i686-unknown-linux-gnu TARGET_DESC=linux-i686
     # - env: TARGET=x86_64-unknown-linux-gnu TEST_ONLY=true
     # - env: TARGET=i686-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-i686
     # - env: TARGET=x86_64-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-x86_64
