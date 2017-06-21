@@ -8,9 +8,9 @@ matrix:
     - env: TARGET=i686-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-i686
     - env: TARGET=x86_64-unknown-linux-gnu TEST_ONLY=true
     - env: TARGET=x86_64-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-x86_64
-    - env: TARGET=i686-apple-darwin DEPLOY_ONLY=true TARGET_DESC=mac-i686
+    - env: TARGET=i686-apple-darwin DEPLOY_ONLY=true TARGET_DESC=apple-i686
       os: osx
-    - env: TARGET=x86_64-apple-darwin TARGET_DESC=mac-x86_64
+    - env: TARGET=x86_64-apple-darwin TARGET_DESC=apple-x86_64
       os: osx
 before_script:
 - |
@@ -22,6 +22,14 @@ before_script:
       RUN_TEST=false
   fi
 - |
+  # set RUN_DEPLOY
+  if [[ ($DEPLOY_ONLY = true || -z $TEST_ONLY) && -n $TRAVIS_TAG ]]; then
+      RUN_DEPLOY=true
+      echo "deploy enabled"
+  else
+      RUN_DEPLOY=false
+  fi
+- |
   # set TEST_FMT
   if [[ ($TEST_ONLY = true || -z $DEPLOY_ONLY) && -z $TRAVIS_TAG ]]; then
       TEST_FMT=true
@@ -30,6 +38,11 @@ before_script:
       TEST_FMT=false
   fi
 - export PATH="$PATH:$HOME/.cargo/bin"
+- |
+  # install target toolchain
+  if $RUN_TEST || $RUN_DEPLOY; then
+      rustup target add "$TARGET" || true
+  fi
 - |
   # cargo install rustfmt
   if $TEST_FMT && ! which rustfmt; then
@@ -46,7 +59,7 @@ script:
 - |
   # cargo build
   if $RUN_TEST; then
-      travis_wait cargo build --verbose
+      travis_wait cargo build --target "$TARGET" --verbose
   fi
 - |
   # cargo-fmt --write-mode=diff
@@ -56,15 +69,15 @@ script:
 - |
   # cargo test
   if $RUN_TEST; then
-      cargo test --verbose
+      cargo test --target "$TARGET" --verbose
   fi
 - |
   # cargo build --release
-  if [[ ($DEPLOY_ONLY = true || -z $TEST_ONLY) && -n $TRAVIS_TAG ]]; then
-      cargo build --verbose --release -j 1
+  if $RUN_DEPLOY; then
+      cargo build --target "$TARGET" --verbose --release -j 1
   fi
 before_deploy:
-- cargo build --verbose --release -j 1
+- cargo build --target "$TARGET" --verbose --release -j 1
 - tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
 deploy:
     provider: releases
