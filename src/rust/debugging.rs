@@ -111,7 +111,7 @@ impl<T, E> FailureUnwrapDebug for Result<T, E>
     }
 }
 
-pub fn setup_logger<T, I>(verbose: bool, debug_modules: Option<I>)
+pub fn setup_logger<T, I>(verbose: bool, debug_modules: I)
     where T: AsRef<str>,
           I: IntoIterator<Item = T>
 {
@@ -124,10 +124,8 @@ pub fn setup_logger<T, I>(verbose: bool, debug_modules: Option<I>)
         .level_for("rustls", log::LogLevelFilter::Warn)
         .level_for("hyper", log::LogLevelFilter::Warn);
 
-    if let Some(modules) = debug_modules {
-        for module in modules {
-            dispatch = dispatch.level_for(module.as_ref().to_owned(), log::LogLevelFilter::Trace);
-        }
+    for module in debug_modules {
+        dispatch = dispatch.level_for(module.as_ref().to_owned(), log::LogLevelFilter::Trace);
     }
 
     dispatch.format(|out, msg, record| {

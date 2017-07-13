@@ -37,7 +37,7 @@ use glium::{DisplayBuild, Surface};
 pub use app::App;
 use app::{AppCell, Event};
 
-pub fn main<T, I>(verbose_logging: bool, debug_modules: Option<I>)
+pub fn main<T, I>(verbose_logging: bool, debug_modules: I)
     where T: AsRef<str>,
           I: IntoIterator<Item = T>
 {
