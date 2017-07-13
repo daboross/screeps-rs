@@ -30,5 +30,5 @@ fn main() {
         .get_matches();
 
     screeps_rs::main(matches.is_present("verbose"),
-                     matches.values_of("debug-modules"));
+                     matches.values_of("debug-modules").into_iter().flat_map(|iter| iter));
 }
