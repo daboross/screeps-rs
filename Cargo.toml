@@ -20,8 +20,8 @@ lto = true
 
 [dependencies]
 # Graphics
-glium = "0.16"
-glutin = "0.7"
+glium = "0.17"
+glutin = "0.9"
 rusttype = "0.2"
 # now below:
 # conrod = { version = "0.51", features = ["glium", "winit"] }
@@ -42,7 +42,7 @@ serde = "1.0"
 serde_derive = "1.0"
 arrayvec = { version = "0.3", features = ["serde"] }
 # Logging
-chrono = "0.3"
+chrono = "0.4"
 log = "0.3"
 fern = "0.4"
 # Command-line
@@ -53,6 +53,11 @@ clap = "2.22"
 git = "https://github.com/daboross/conrod.git"
 branch = "add-password-text-boxes"
 features = ["glium", "winit"]
+
+[dependencies.conrod_derive]
+# waiting on my finishing https://github.com/PistonDevelopers/conrod/pull/964
+git = "https://github.com/daboross/conrod.git"
+branch = "add-password-text-boxes"
 
 [[bin]]
 name = "scrs"

@@ -6,6 +6,8 @@ extern crate glutin;
 extern crate rusttype;
 #[macro_use]
 extern crate conrod;
+#[macro_use]
+extern crate conrod_derive;
 // Network
 extern crate futures;
 extern crate tokio_core;
@@ -33,7 +35,7 @@ pub mod debugging;
 pub mod network;
 
 use debugging::{FailureUnwrap, FailStage};
-use glium::{DisplayBuild, Surface};
+use glium::Surface;
 pub use app::App;
 use app::{AppCell, Event};
 
@@ -44,57 +46,75 @@ pub fn main<T, I>(verbose_logging: bool, debug_modules: I)
     debugging::setup_logger(verbose_logging, debug_modules);
 
     // Create window.
-    let display = glutin::WindowBuilder::new()
+    let events_loop = glutin::EventsLoop::new();
+    let window = glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
-        .with_vsync()
-        .with_title("SCRS Client")
-        .build_glium()
-        .uw(FailStage::Startup, "Error creating window.");
+        .with_title("SCRS Client");
+    let context = glutin::ContextBuilder::new()
+        .with_vsync(true)
+        .with_multisampling(8);
+    let display = glium::Display::new(window, context, &events_loop).uw(FailStage::Startup, "Error creating window.");
 
     // Create UI and other components.
-    let mut app = App::new(display);
+    let mut app = App::new(display, &events_loop);
 
     // Add font.
     app.ui.fonts.insert(akashi_font());
 
-    main_window_loop(app);
+    main_window_loop(events_loop, app);
 }
 
-fn main_window_loop(mut app: App) {
-    let mut events = app::EventLoop::new(&app.display);
+fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
+    let mut events = app::EventLoop::new(events);
 
     let mut state = app::GraphicsState::login_screen();
 
     debug!("Starting event loop.");
 
-    loop {
+
+    events.run_loop(|control, event| {
         if let app::GraphicsState::Exit = state {
             info!("exiting.");
-            break;
+            control.exit();
+            return;
         }
 
-        let next_event = events.next();
-
-        match next_event {
+        match event {
             Event::Glutin(event) => {
                 debug!("Glutin Event: {:?}", event);
 
                 // Use the `winit` backend feature to convert the winit event to a conrod one.
-                if let Some(event) = conrod::backend::winit::convert(event.clone(), &app.display) {
+                if let Some(event) = conrod::backend::winit::convert_event(event.clone(), &app.display) {
                     debug!("Conrod Event: {:?}", event);
 
                     app.ui.handle_event(event);
-                    events.needs_update();
+                    control.needs_update();
                 }
 
                 match event {
-                    // Break from the loop upon `Escape`.
-                    glutin::Event::KeyboardInput(_, _, Some(glutin::VirtualKeyCode::Escape)) |
-                    glutin::Event::Closed => return,
-                    // glutin::Event::Focused(true) |
-                    glutin::Event::Refresh | glutin::Event::Awakened => {
+                    glutin::Event::WindowEvent { event, .. } => {
+                        match event {
+                            // Break from the loop upon `Escape`.
+                            glutin::WindowEvent::KeyboardInput {
+                                input: glutin::KeyboardInput {
+                                    virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
+                                    ..
+                                } ,
+                                ..
+                            } |
+                            glutin::WindowEvent::Closed => return,
+                            // glutin::Event::Focused(true) |
+                            glutin::WindowEvent::Refresh |
+                            glutin::WindowEvent::Resized(..) => {
+                                app.ui.needs_redraw();
+                                control.needs_update();
+                            }
+                            _ => (),
+                        }
+                    }
+                    glutin::Event::Awakened => {
                         app.ui.needs_redraw();
-                        events.needs_update();
+                        control.needs_update();
                     }
                     _ => (),
                 }
@@ -111,6 +131,7 @@ fn main_window_loop(mut app: App) {
                               ref mut ids,
                               ref mut renderer,
                               ref mut net_cache,
+                              ref notify,
                               .. } = app;
 
                     let mut ui_cell = ui.set_widgets();
@@ -121,7 +142,8 @@ fn main_window_loop(mut app: App) {
                                                  ids,
                                                  renderer,
                                                  net_cache,
-                                                 &mut additional_render);
+                                                 &mut additional_render,
+                                                 notify);
 
                     // Create main screen.
                     app::create_ui(&mut cell, &mut state);
@@ -144,11 +166,8 @@ fn main_window_loop(mut app: App) {
                     target.finish().expect("Frame shouldn't be finished yet.");
                 }
             }
-            Event::None => {
-                error!("Empty event cycle.");
-            }
         }
-    }
+    });
 }
 
 fn akashi_font() -> rusttype::Font<'static> {

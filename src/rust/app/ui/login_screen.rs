@@ -3,7 +3,6 @@ use conrod::widget::*;
 
 use time;
 
-use debugging::{FailureUnwrap, FailStage};
 use network::{self, ScreepsConnection, Request};
 
 use super::super::AppCell;
@@ -75,7 +74,7 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         }
     }
 
-    let AppCell { ref mut ui, ref display, ref mut ids, .. } = *app;
+    let AppCell { ref mut ui, ref mut ids, ref notify, .. } = *app;
 
     use conrod::widget::text_box::Event as TextBoxEvent;
 
@@ -238,10 +237,7 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
             }
             None => {
                 debug!("sending login request to new network.");
-                let proxy = display.get_window()
-                    .uw(FailStage::Runtime, "could not find window, headless?")
-                    .create_window_proxy();
-                let mut network = network::ThreadedHandler::new(proxy);
+                let mut network = network::ThreadedHandler::new((*notify).clone());
                 network.send(network::Request::login(&*state.username, &*state.password))
                     .expect("Cannot receive login error for login request.");
                 state.network = Some(network);

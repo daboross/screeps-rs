@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::sync::Arc;
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc as futures_mpsc;
@@ -37,7 +38,7 @@ use self::read::ReaderData;
 pub struct Executor<C, H, T> {
     handle: Handle,
     send_results: StdSender<NetworkEvent>,
-    notify: glutin::WindowProxy,
+    notify: Arc<glutin::EventsLoopProxy>,
     subscribed_map_view: Rc<RefCell<HashSet<RoomName>>>,
     http_client: screeps_api::Api<C, H, T>,
     login: LoginDetails,
@@ -55,7 +56,7 @@ impl<C, H, T> Executor<C, H, T> {
                send_results: StdSender<NetworkEvent>,
                http_client: screeps_api::Api<C, H, T>,
                login: LoginDetails,
-               notify: glutin::WindowProxy)
+               notify: Arc<glutin::EventsLoopProxy>)
                -> Self {
 
         let (raw_sender, raw_receiver) = futures_mpsc::unbounded();
@@ -164,7 +165,7 @@ impl<C, H, T> Executor<C, H, T>
 
     fn relay_event(&self, event: NetworkEvent) {
         match self.send_results.send(event) {
-            Ok(()) => self.notify.wakeup_event_loop(),
+            Ok(()) => self.notify.wakeup().expect("expected glium loop to still be running when "),
             Err(event) => {
                 warn!("failed to send websocket event to main thread - event: {}",
                       event);
@@ -443,6 +444,7 @@ impl<C, H, T> Executor<C, H, T>
 
 mod read {
     use std::sync::mpsc::Sender as StdSender;
+    use std::sync::Arc;
 
     use futures::{future, Future, Stream};
     use tokio_core::reactor::Handle;
@@ -462,7 +464,7 @@ mod read {
         handle: Handle,
         send_results: StdSender<NetworkEvent>,
         tokens: T,
-        notify: glutin::WindowProxy,
+        notify: Arc<glutin::EventsLoopProxy>,
         raw_send_sender: UnboundedSender<(u16, OwnedMessage)>,
         connection_id: u16,
     }
@@ -475,7 +477,7 @@ mod read {
         pub fn new(handle: Handle,
                    send_results: StdSender<NetworkEvent>,
                    tokens: T,
-                   notify: glutin::WindowProxy,
+                   notify: Arc<glutin::EventsLoopProxy>,
                    send: UnboundedSender<(u16, OwnedMessage)>,
                    connection_id: u16)
                    -> Self {
@@ -491,14 +493,12 @@ mod read {
 
         fn send(&self, event: NetworkEvent) -> Result<(), ExitNow> {
             match self.send_results.send(event) {
-                Ok(()) => self.notify.wakeup_event_loop(),
+                Ok(()) => self.notify.wakeup().map_err(|_| ExitNow),
                 Err(_) => {
                     debug!("sending websocket event to main thread failed, exiting.");
-                    return Err(ExitNow);
+                    Err(ExitNow)
                 }
             }
-
-            Ok(())
         }
 
         fn send_response(&self, response: OwnedMessage) -> Result<(), ExitNow> {

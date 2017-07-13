@@ -1,4 +1,5 @@
 use std::{fmt, thread};
+use std::sync::Arc;
 
 use std::sync::mpsc as std_mpsc;
 use std::sync::mpsc::Sender as StdSender;
@@ -46,7 +47,7 @@ pub struct Handler {
     /// Username and password in case we need to re-login.
     login_info: Option<LoginDetails>,
     /// Window proxy in case we need to restart handler thread.
-    window: glutin::WindowProxy,
+    notify: Arc<glutin::EventsLoopProxy>,
 }
 
 #[derive(Debug)]
@@ -81,14 +82,14 @@ impl HandlerHandles {
 
 impl Handler {
     /// Creates a new requests state, and starts an initial handler with a pending login request.
-    pub fn new(window: glutin::WindowProxy) -> Self {
+    pub fn new(notify: Arc<glutin::EventsLoopProxy>) -> Self {
         Handler {
             handles: None,
             login_info: None,
             tokens: ArcTokenStorage::default(),
             // TODO: handle this gracefully
             disk_cache: disk::Cache::load().expect("loading the disk cache failed."),
-            window: window,
+            notify: notify,
         }
     }
 
@@ -121,7 +122,7 @@ impl Handler {
         let handler = ThreadedHandler::new(handler_http_recv,
                                            handler_ws_recv,
                                            handler_send,
-                                           self.window.clone(),
+                                           self.notify.clone(),
                                            self.tokens.clone(),
                                            login_details.clone(),
                                            self.disk_cache.clone());
@@ -186,7 +187,7 @@ impl fmt::Debug for Handler {
             .field("handles", &self.handles)
             .field("login_info", &self.login_info)
             .field("tokens", &self.tokens)
-            .field("window", &"<non-debug>")
+            .field("notify", &"<non-debug>")
             .finish()
     }
 }
@@ -196,7 +197,7 @@ struct ThreadedHandler {
     http_recv: FuturesReceiver<HttpRequest>,
     ws_recv: FuturesReceiver<WebsocketRequest>,
     send: StdSender<NetworkEvent>,
-    window: glutin::WindowProxy,
+    notify: Arc<glutin::EventsLoopProxy>,
     login: LoginDetails,
     tokens: ArcTokenStorage,
     disk_cache: disk::Cache,
@@ -205,7 +206,7 @@ impl ThreadedHandler {
     fn new(http_recv: FuturesReceiver<HttpRequest>,
            ws_recv: FuturesReceiver<WebsocketRequest>,
            send: StdSender<NetworkEvent>,
-           awaken: glutin::WindowProxy,
+           notify: Arc<glutin::EventsLoopProxy>,
            tokens: ArcTokenStorage,
            login: LoginDetails,
            disk_cache: disk::Cache)
@@ -214,7 +215,7 @@ impl ThreadedHandler {
             http_recv: http_recv,
             ws_recv: ws_recv,
             send: send,
-            window: awaken,
+            notify: notify,
             login: login,
             tokens: tokens,
             disk_cache: disk_cache,
@@ -230,7 +231,7 @@ impl ThreadedHandler {
     fn run(self, send_remote_to: StdSender<tokio_core::reactor::Remote>) {
         use futures::Sink;
 
-        let ThreadedHandler { http_recv, ws_recv, send, window, login, tokens, disk_cache } = self;
+        let ThreadedHandler { http_recv, ws_recv, send, notify, login, tokens, disk_cache } = self;
 
         let mut core = Core::new().expect("expected tokio core to succeed startup.");
 
@@ -260,7 +261,7 @@ impl ThreadedHandler {
             assert!(token_pool_send.start_send(http::Executor {
                     handle: handle.clone(),
                     send_results: send.clone(),
-                    notify: window.clone(),
+                    notify: notify.clone(),
                     executor_return: cloned_send,
                     login: login.clone(),
                     client: client.clone(),
@@ -274,7 +275,7 @@ impl ThreadedHandler {
                                             send.clone(),
                                             client.clone(),
                                             login.clone(),
-                                            window.clone());
+                                            notify.clone());
 
         // zip ensures that we have one token for each request! this way we'll
         // never have more than 5 concurrent requests.
@@ -290,7 +291,7 @@ impl ThreadedHandler {
         }
 
         info!("single threaded event loop exiting.");
-        // let the client know that we have closed.
-        window.wakeup_event_loop();
+        // let the client know that we have closed, ignoring errors.
+        let _ = notify.wakeup();
     }
 }

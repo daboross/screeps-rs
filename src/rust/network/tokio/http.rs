@@ -1,4 +1,5 @@
 use std::time::Duration;
+use std::sync::Arc;
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc::Sender as BoundedFuturesSender;
@@ -20,7 +21,7 @@ use super::utils;
 pub struct Executor<C, H, T> {
     pub handle: Handle,
     pub send_results: StdSender<NetworkEvent>,
-    pub notify: glutin::WindowProxy,
+    pub notify: Arc<glutin::EventsLoopProxy>,
     pub executor_return: BoundedFuturesSender<Executor<C, H, T>>,
     pub login: LoginDetails,
     pub client: screeps_api::Api<C, H, T>,
@@ -143,7 +144,10 @@ impl<C, H, T> Executor<C, H, T>
                 match exec.send_results.send(event) {
                     Ok(_) => {
                         trace!("successfully finished a request.");
-                        exec.notify.wakeup_event_loop();
+                        let result = exec.notify.wakeup();
+                        if let Err(_) = result {
+                            warn!("failed to wake up main event loop after sending result successfully.")
+                        }
                     }
                     Err(_) => {
                         warn!("failed to send the result of a request.");

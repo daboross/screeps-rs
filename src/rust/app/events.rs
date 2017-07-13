@@ -1,6 +1,6 @@
-use glium;
-use glutin;
 use std::{time, thread};
+
+use glutin;
 
 /// This manages the underlying support for glium + glutin.
 ///
@@ -13,60 +13,17 @@ use std::{time, thread};
 /// example.
 ///
 /// [ev]: https://github.com/PistonDevelopers/conrod/blob/master/examples/support/mod.rs#L367
-pub struct EventLoop<'a> {
-    display: &'a glium::Display,
-    ui_needs_update: u8,
+pub struct EventLoop {
+    events_loop: glutin::EventsLoop,
     last_ui_update: time::Instant,
 }
 
-impl<'a> EventLoop<'a> {
-    pub fn new(window: &'a glium::Display) -> Self {
-        EventLoop {
-            display: window,
-            ui_needs_update: 1,
-            last_ui_update: time::Instant::now() - time::Duration::from_millis(16),
-        }
-    }
+pub struct LoopControl {
+    ui_needs_update: u8,
+    exiting: bool,
+}
 
-    fn poll_event(&mut self) -> Option<glutin::Event> {
-        self.display.get_window().and_then(|w| w.poll_events().next())
-    }
-
-    fn wait_event(&mut self) -> Option<glutin::Event> {
-        self.display.get_window().and_then(|w| w.wait_events().next())
-    }
-
-    /// Gets the next event. If there are no glutin events available, this either returns `Event::UpdateUi` or waits
-    /// for an event depending on if the UI needs updating
-    pub fn next(&mut self) -> Event {
-        if let Some(event) = self.poll_event() {
-            return Event::Glutin(event);
-        }
-
-        if self.ui_needs_update > 0 {
-            let sixteen_ms = time::Duration::from_millis(16);
-            let time_since = self.last_ui_update.elapsed();
-            if time_since < sixteen_ms {
-                thread::sleep(sixteen_ms - time_since);
-                if let Some(event) = self.poll_event() {
-                    return Event::Glutin(event);
-                }
-            }
-            self.last_ui_update = time::Instant::now();
-            self.ui_needs_update -= 1;
-            return Event::UpdateUi;
-        }
-
-        if let Some(event) = self.wait_event() {
-            return Event::Glutin(event);
-        }
-
-        // Wait events should always return as long there is a window left, so this should normally never need to
-        // happen.
-        thread::sleep(time::Duration::from_millis(16));
-        return Event::None;
-    }
-
+impl LoopControl {
     /// Notifies the event loop that the `Ui` requires another update whether or not there are any
     /// pending events.
     ///
@@ -74,6 +31,80 @@ impl<'a> EventLoop<'a> {
     /// requires further updates to do so.
     pub fn needs_update(&mut self) {
         self.ui_needs_update = 3;
+    }
+
+    /// Notifies the loop to skip all current pending events, and exit the loop immediately afterwards.
+    pub fn exit(&mut self) {
+        self.exiting = true;
+    }
+}
+
+impl EventLoop {
+    pub fn new(events_loop: glutin::EventsLoop) -> Self {
+        EventLoop {
+            events_loop: events_loop,
+            last_ui_update: time::Instant::now() - time::Duration::from_millis(16),
+        }
+    }
+
+    fn poll_events<F>(&mut self, callback: F)
+        where F: FnMut(glutin::Event)
+    {
+        self.events_loop.poll_events(callback);
+    }
+
+    fn wait_events<F>(&mut self, mut callback: F)
+        where F: FnMut(glutin::Event)
+    {
+        self.events_loop.run_forever(|event| {
+            callback(event);
+
+            glutin::ControlFlow::Break
+        })
+    }
+
+    /// Gets the next event. If there are no glutin events available, this either returns `Event::UpdateUi` or waits
+    /// for an event depending on if the UI needs updating
+    pub fn run_loop<F>(&mut self, mut callback: F)
+        where F: FnMut(&mut LoopControl, Event)
+    {
+        let mut control = LoopControl {
+            ui_needs_update: 3,
+            exiting: false,
+        };
+
+        loop {
+            self.poll_events(|evt| if !control.exiting {
+                callback(&mut control, Event::Glutin(evt))
+            });
+
+            if control.exiting {
+                break;
+            }
+
+            if control.ui_needs_update > 0 {
+                let sixteen_ms = time::Duration::from_millis(16);
+                let time_since = self.last_ui_update.elapsed();
+                if time_since < sixteen_ms {
+                    thread::sleep(sixteen_ms - time_since);
+                    // re-poll for window events once more, then when this code block runs sixteen milliseconds
+                    // will definitely have passed.
+                    continue;
+                }
+                self.last_ui_update = time::Instant::now();
+                control.ui_needs_update -= 1;
+                callback(&mut control, Event::UpdateUi);
+                continue;
+            }
+
+            self.wait_events(|evt| if !control.exiting {
+                callback(&mut control, Event::Glutin(evt))
+            });
+
+            if control.exiting {
+                break;
+            }
+        }
     }
 }
 
@@ -83,6 +114,4 @@ pub enum Event {
     Glutin(glutin::Event),
     /// The UI needs to be updated.
     UpdateUi,
-    /// The glutin window did not yield any events even with wait_events, and a UI update is not needed.
-    None,
 }

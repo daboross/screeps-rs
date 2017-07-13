@@ -266,22 +266,23 @@ mod room_view_widget {
     use super::ScrollUpdate;
     use conrod::{widget, Widget};
 
+    #[derive(WidgetCommon)]
     pub(super) struct ScrollableRoomView {
+        #[conrod(common_builder)]
         common: widget::CommonBuilder,
         style: Style,
     }
 
-    widget_style! {
-        style Style {}
-    }
+    #[derive(Copy, Clone, Debug, Default, PartialEq, WidgetStyle)]
+    pub(super) struct Style {}
 
     pub(super) struct State {}
 
     impl ScrollableRoomView {
         pub(super) fn new() -> Self {
             ScrollableRoomView {
-                common: widget::CommonBuilder::new(),
-                style: Style::new(),
+                common: widget::CommonBuilder::default(),
+                style: Style::default(),
             }
         }
     }
@@ -289,14 +290,6 @@ mod room_view_widget {
         type State = State;
         type Style = Style;
         type Event = Option<ScrollUpdate>;
-
-        fn common(&self) -> &widget::CommonBuilder {
-            &self.common
-        }
-
-        fn common_mut(&mut self) -> &mut widget::CommonBuilder {
-            &mut self.common
-        }
 
         fn init_state(&self, _: widget::id::Generator) -> State {
             State {}
