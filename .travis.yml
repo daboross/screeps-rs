@@ -7,6 +7,11 @@ matrix:
     include:
     - env: TARGET=x86_64-unknown-linux-gnu TARGET_DESC=linux-x86_64
     - env: TARGET=i686-unknown-linux-gnu TARGET_DESC=linux-i686
+      addons:
+          apt:
+              packages:
+              - g++-multilib
+              - g++-4.8-multilib
     # - env: TARGET=x86_64-unknown-linux-gnu TEST_ONLY=true
     # - env: TARGET=i686-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-i686
     # - env: TARGET=x86_64-unknown-linux-musl DEPLOY_ONLY=true TARGET_DESC=linux-x86_64
@@ -49,7 +54,7 @@ before_script:
   # cargo install rustfmt
   if $TEST_FMT && ! which rustfmt; then
       echo "installing rustfmt"
-      travis_wait cargo install rustfmt --verbose --vers 0.7.1
+      travis_wait cargo install rustfmt --verbose --vers 0.7.1 -j 1
   fi
 - |
   # rustfmt --version
@@ -61,7 +66,7 @@ script:
 - |
   # cargo build
   if $RUN_TEST; then
-      travis_wait cargo build --target "$TARGET" --verbose
+      travis_wait cargo build --target "$TARGET" --verbose -j 1
   fi
 - |
   # cargo-fmt --write-mode=diff
@@ -71,7 +76,7 @@ script:
 - |
   # cargo test
   if $RUN_TEST; then
-      cargo test --target "$TARGET" --verbose
+      cargo test --target "$TARGET" --verbose -j 1
   fi
 - |
   # cargo build --release
