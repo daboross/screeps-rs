@@ -5,7 +5,7 @@ screeps-rs
 
 WIP native screeps client using [Rust] and [conrod].
 
-Screeps is a true programming MMO where users uploading JavaScript code to power their online empires.
+Screeps is a true programming MMO where users upload JavaScript code to power their online empires.
 
 ![terrain rendering screenshot][terrain-image]
 
