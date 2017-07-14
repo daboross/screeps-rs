@@ -52,7 +52,7 @@ pub fn main<T, I>(verbose_logging: bool, debug_modules: I)
         .with_title("SCRS Client");
     let context = glutin::ContextBuilder::new()
         .with_vsync(true)
-        .with_multisampling(8);
+        .with_multisampling(4);
     let display = glium::Display::new(window, context, &events_loop).uw(FailStage::Startup, "Error creating window.");
 
     // Create UI and other components.
