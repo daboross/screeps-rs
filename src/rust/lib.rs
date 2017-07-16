@@ -102,7 +102,7 @@ fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                                 } ,
                                 ..
                             } |
-                            glutin::WindowEvent::Closed => return,
+                            glutin::WindowEvent::Closed => control.exit(),
                             // glutin::Event::Focused(true) |
                             glutin::WindowEvent::Refresh |
                             glutin::WindowEvent::Resized(..) => {
