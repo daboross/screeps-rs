@@ -3,6 +3,7 @@ use std::time::Duration;
 use std::{fs, io};
 
 use screeps_api::{RoomName, TerrainGrid};
+use screeps_api::data::room_name::RoomNameAbsoluteCoordinates;
 use futures_cpupool::CpuPool;
 use futures::{future, stream, Future, Stream};
 use tokio_core::reactor;
@@ -120,7 +121,7 @@ impl Cache {
     }
 
     pub fn set_terrain(&self, room: RoomName, data: &TerrainGrid) -> impl Future<Item = (), Error = rocksdb::Error> {
-        let key = CacheKey::Terrain(room).encode();
+        let key = CacheKey::Terrain(room.into()).encode();
 
         let to_store = CacheEntry {
             fetched: time::get_time(),
@@ -136,7 +137,7 @@ impl Cache {
     }
 
     pub fn get_terrain(&self, room: RoomName) -> impl Future<Item = Option<TerrainGrid>, Error = rocksdb::Error> {
-        let key = CacheKey::Terrain(room).encode();
+        let key = CacheKey::Terrain(room.into()).encode();
 
         let sent_database = self.database.clone();
 
@@ -225,7 +226,7 @@ struct CacheEntry<T> {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 enum CacheKey {
     // NOTE: whenever adding a variant, the length return in 'encode' must be tested and updated.
-    Terrain(RoomName),
+    Terrain(RoomNameAbsoluteCoordinates),
 }
 
 impl CacheKey {
@@ -238,6 +239,7 @@ impl CacheKey {
     /// NOTE: the length of the returned array is NOT stable, and will change in the future.
     fn encode(&self) -> [u8; 12] {
         let mut result = [0u8; 12];
+
         bincode::serialize_into(&mut &mut result[..], self, bincode::Bounded(12))
             .expect("expected writing cache key of known length to array of known length to succeed.");
         result
