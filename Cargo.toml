@@ -16,7 +16,7 @@ license = "MIT"
 path = "src/rust/lib.rs"
 
 [profile.release]
-lto = true
+lto = false
 
 [dependencies]
 # Graphics
