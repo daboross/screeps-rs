@@ -117,6 +117,73 @@ impl MemCache {
             NetworkEvent::MapView { room_name, result } => {
                 self.rooms.borrow_mut().map_views.insert(room_name, (time::get_time(), result));
             }
+            NetworkEvent::RoomView { room_name, result } => {
+                use serde_json;
+                use std::collections::hash_map::Entry::*;
+
+                let mut data = self.rooms.borrow_mut();
+
+                let mut new_detail_view = None;
+
+                match data.detail_view.as_mut() {
+                    Some(&mut (name, ref mut map)) if name == room_name => {
+                        for (id, obj_update) in result.objects.into_iter() {
+                            if obj_update.is_null() {
+                                map.remove(&id);
+                            } else {
+                                match map.entry(id.clone()) {
+                                    Occupied(entry) => {
+                                        let mut obj_data = entry.into_mut();
+
+                                        obj_data.update(obj_update.clone())
+                                            .map_err(|e| {
+                                                ErrorEvent::room_view(format!(
+                                                    "update for id {} in room {} did not parse: \
+                                                    existing value: {:?}, failed update: {:?}, error: {}",
+                                                                              id, room_name,
+                                                                              obj_data,
+                                                                              obj_update, e))
+                                            })?;
+                                    }
+                                    Vacant(entry) => {
+                                        entry.insert(serde_json::from_value(obj_update.clone()).map_err(|e| {
+                                                ErrorEvent::room_view(format!(
+                                                    "data for id {} in room {} did not parse: \
+                                                    failed json: {:?}, error: {}",
+                                                                              id,
+                                                                              room_name,
+                                                                              obj_update,
+                                                                              e))
+                                            })?);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        let new_map = result.objects
+                            .into_iter()
+                            .map(|(id, obj_json)| {
+                                let data = serde_json::from_value(obj_json.clone()).map_err(|e| {
+                                        ErrorEvent::room_view(format!("data for id {} in room {} did not parse: \
+                                                                      failed json: {:?}, error: {}",
+                                                                      id,
+                                                                      room_name,
+                                                                      obj_json,
+                                                                      e))
+                                    })?;
+                                Ok((id, data))
+                            })
+                            .collect::<Result<HashMap<_, _>, ErrorEvent>>()?;
+
+                        new_detail_view = Some(new_map);
+                    }
+                }
+
+                if let Some(view) = new_detail_view {
+                    data.detail_view = Some((room_name, view));
+                }
+            }
             NetworkEvent::WebsocketError { error } => return Err(ErrorEvent::WebsocketError(error)),
             NetworkEvent::WebsocketHttpError { error } => return Err(ErrorEvent::ErrorOccurred(error)),
             NetworkEvent::WebsocketParseError { error } => return Err(ErrorEvent::WebsocketParse(error)),

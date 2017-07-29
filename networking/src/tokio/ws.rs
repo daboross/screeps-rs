@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{RefCell, Cell};
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc as futures_mpsc;
@@ -40,7 +40,6 @@ pub struct Executor<N, C, H, T> {
     handle: Handle,
     send_results: StdSender<NetworkEvent>,
     notify: N,
-    subscribed_map_view: Rc<RefCell<HashSet<RoomName>>>,
     http_client: screeps_api::Api<C, H, T>,
     login: LoginDetails,
     /// Receive messages from the Reader thread to send.
@@ -50,6 +49,9 @@ pub struct Executor<N, C, H, T> {
     /// can be ignored/dropped.
     connection_id: u16,
     client: Option<WebsocketSink>,
+    // What we're currently subscribed to:
+    subscribed_map_view: Rc<RefCell<HashSet<RoomName>>>,
+    subscribed_room_view: Rc<Cell<Option<RoomName>>>,
 }
 
 impl<N, C, H, T> Executor<N, C, H, T> {
@@ -66,13 +68,14 @@ impl<N, C, H, T> Executor<N, C, H, T> {
             handle: handle,
             send_results: send_results,
             notify: notify,
-            subscribed_map_view: Default::default(),
             http_client: http_client,
             login: login,
             raw_send_receiver: Some(raw_receiver),
             raw_send_sender: raw_sender,
             connection_id: 0,
             client: None,
+            subscribed_map_view: Default::default(),
+            subscribed_room_view: Default::default(),
         }
     }
 }
@@ -124,7 +127,7 @@ impl<N, C, H, T> Executor<N, C, H, T>
                 let room_set = self.subscribed_map_view.clone();
 
                 // subscribe to rooms we aren't subscribed to already.
-                stream::iter(rooms.into_iter()
+                Box::new(stream::iter(rooms.into_iter()
                         .filter(move |room_name| !room_set.borrow().contains(&room_name))
                         .map(|v| Ok(v)))
                     .fold(self,
@@ -141,7 +144,19 @@ impl<N, C, H, T> Executor<N, C, H, T>
                         stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v))).fold(executor, |executor, room_name| {
                             executor.unsubscribe(Channel::room_map_view(room_name))
                         })
-                    })
+                    })) as Box<Future<Item = Self, Error = ()>>
+            }
+            WebsocketRequest::SetFocusRoom { room } => {
+                match (self.subscribed_room_view.get(), room) {
+                    (None, None) => Box::new(future::ok(self)) as Box<Future<Item = Self, Error = ()>>,
+                    (Some(ref r1), Some(ref r2)) if r1 == r2 => Box::new(future::ok(self)),
+                    (None, Some(to_subscribe)) => Box::new(self.subscribe(Channel::room_detail(to_subscribe))),
+                    (Some(to_unsubscribe), None) => Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe))),
+                    (Some(to_unsubscribe), Some(to_subscribe)) => {
+                        Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe))
+                            .and_then(move |executor| executor.subscribe(Channel::room_detail(to_subscribe))))
+                    }
+                }
             }
         }
     }
@@ -613,6 +628,14 @@ mod read {
                         result: update,
                     };
                     debug!("received map view update for {}!", room_name);
+                    self.send(event)?;
+                }
+                ChannelUpdate::RoomDetail { room_name, update } => {
+                    let event = NetworkEvent::RoomView {
+                        room_name: room_name,
+                        result: update,
+                    };
+                    debug!("received room view update for {}!", room_name);
                     self.send(event)?;
                 }
                 other => {

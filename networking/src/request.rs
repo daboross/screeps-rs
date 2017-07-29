@@ -47,7 +47,6 @@ impl fmt::Debug for LoginDetails {
 pub struct SelectedRooms {
     pub start: RoomName,
     pub end: RoomName,
-    pub focused_room: Option<RoomName>,
 }
 
 impl SelectedRooms {
@@ -67,7 +66,6 @@ impl SelectedRooms {
         SelectedRooms {
             start: start,
             end: end,
-            focused_room: None,
         }
     }
 
@@ -75,11 +73,6 @@ impl SelectedRooms {
     pub fn contains(&self, room: &RoomName) -> bool {
         (self.start.x_coord < room.x_coord && room.x_coord < self.end.x_coord) &&
         (self.start.y_coord < room.y_coord && room.y_coord < self.end.y_coord)
-    }
-
-    #[inline]
-    pub fn set_focus<T: Into<Option<RoomName>>>(&mut self, room: T) {
-        self.focused_room = room.into();
     }
 }
 
@@ -135,6 +128,7 @@ pub enum Request {
     MyInfo,
     RoomTerrain { room_name: RoomName },
     SetMapSubscribes { rooms: SelectedRooms },
+    SetFocusRoom { room: Option<RoomName> },
 }
 
 impl Request {
@@ -150,7 +144,7 @@ impl Request {
     }
 
     pub fn my_info() -> Self {
-        Request::MyInfo
+        MyInfo
     }
 
     pub fn room_terrain(room_name: RoomName) -> Self {
@@ -159,5 +153,9 @@ impl Request {
 
     pub fn subscribe_map_view(rooms: SelectedRooms) -> Self {
         SetMapSubscribes { rooms: rooms }
+    }
+
+    pub fn focus_room(room_name: Option<RoomName>) -> Self {
+        SetFocusRoom { room: room_name }
     }
 }

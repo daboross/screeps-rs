@@ -69,15 +69,9 @@ pub fn create_ui(app: &mut AppCell,
     {
         let mut net = net_cache.align(&mut state.network, |err| match err {
             network::ErrorEvent::NotLoggedIn => bail = true,
-            network::ErrorEvent::ErrorOccurred(e) => {
+            other => {
                 // TODO: do a "notification bar" side thing in the app with these.
-                warn!("network error occurred: {}", e);
-            }
-            network::ErrorEvent::WebsocketError(e) => {
-                warn!("network error occurred: {}", e);
-            }
-            network::ErrorEvent::WebsocketParse(e) => {
-                warn!("network error occurred: {}", e);
+                warn!("network error occurred: {}", other);
             }
         });
         if let Some(info) = net.my_info() {

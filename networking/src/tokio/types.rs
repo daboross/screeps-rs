@@ -12,6 +12,7 @@ pub enum HttpRequest {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum WebsocketRequest {
     SetMapSubscribes { rooms: SelectedRooms },
+    SetFocusRoom { room: Option<screeps_api::RoomName> },
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -31,6 +32,7 @@ impl From<Request> for GenericRequest {
             Request::SetMapSubscribes { rooms } => {
                 GenericRequest::Websocket(WebsocketRequest::SetMapSubscribes { rooms: rooms })
             }
+            Request::SetFocusRoom { room } => GenericRequest::Websocket(WebsocketRequest::SetFocusRoom { room: room }),
         }
     }
 }
@@ -49,6 +51,7 @@ impl Into<Request> for WebsocketRequest {
     fn into(self) -> Request {
         match self {
             WebsocketRequest::SetMapSubscribes { rooms } => Request::SetMapSubscribes { rooms: rooms },
+            WebsocketRequest::SetFocusRoom { room } => Request::SetFocusRoom { room: room },
         }
     }
 }

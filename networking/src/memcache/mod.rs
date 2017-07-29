@@ -11,6 +11,7 @@ pub enum ErrorEvent {
     ErrorOccurred(screeps_api::Error),
     WebsocketError(websocket::WebSocketError),
     WebsocketParse(screeps_api::websocket::parsing::ParseError),
+    RoomViewError(String), // TODO: granularity here.
 }
 
 impl From<screeps_api::NoToken> for ErrorEvent {
@@ -37,6 +38,12 @@ impl From<screeps_api::websocket::parsing::ParseError> for ErrorEvent {
     }
 }
 
+impl ErrorEvent {
+    fn room_view(data: String) -> Self {
+        ErrorEvent::RoomViewError(data)
+    }
+}
+
 impl fmt::Display for ErrorEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -47,6 +54,7 @@ impl fmt::Display for ErrorEvent {
             ErrorEvent::ErrorOccurred(ref e) => e.fmt(f),
             ErrorEvent::WebsocketError(ref e) => e.fmt(f),
             ErrorEvent::WebsocketParse(ref e) => e.fmt(f),
+            ErrorEvent::RoomViewError(ref e) => e.fmt(f),
         }
     }
 }

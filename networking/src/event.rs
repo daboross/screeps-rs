@@ -14,6 +14,14 @@ pub struct MapCacheData {
     pub terrain: HashMap<RoomName, (time::Timespec, screeps_api::TerrainGrid)>,
     /// Map views, the Timespec is when the data was fetched.
     pub map_views: HashMap<RoomName, (time::Timespec, screeps_api::websocket::RoomMapViewUpdate)>,
+    /// Single current known view of a room.
+    ///
+    /// TODO: keep track of history of room's we've subscribed to in the past and what tick each data was updated.
+    /// TODO: possibly keep history for each for an 'instant replay' functionality.
+    /// TODO: handle unknown room objects better: given that we know they have at least an 'x' and 'y' property, we
+    /// could definitely do a question mark in the UI with a drop-down for JSON properties the object has.
+    pub detail_view: Option<(RoomName,
+                                HashMap<String, screeps_api::websocket::types::room::objects::KnownRoomObject>)>,
 }
 
 pub type MapCache = Rc<RefCell<MapCacheData>>;
@@ -36,6 +44,10 @@ pub enum NetworkEvent {
         room_name: screeps_api::RoomName,
         result: screeps_api::websocket::RoomMapViewUpdate,
     },
+    RoomView {
+        room_name: screeps_api::RoomName,
+        result: screeps_api::websocket::RoomUpdate,
+    },
 }
 
 
@@ -47,6 +59,7 @@ impl NetworkEvent {
             NetworkEvent::RoomTerrain { ref result, .. } => result.as_ref().err(),
             NetworkEvent::WebsocketHttpError { ref error } => Some(error),
             NetworkEvent::MapView { .. } |
+            NetworkEvent::RoomView { .. } |
             NetworkEvent::WebsocketError { .. } |
             NetworkEvent::WebsocketParseError { .. } => None,
         }
