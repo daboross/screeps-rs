@@ -1,59 +1,9 @@
-[package]
-name = "screeps-rs"
-version = "0.1.5"
-authors = ["David Ross <daboross@daboross.net>"]
-description = "WIP native Screeps client using Rust and Conrod."
-
-repository = "https://github.com/daboross/screeps-rs"
-
-readme = "README.md"
-
-keywords = []
-categories = ["games"]
-license = "MIT"
-
-[lib]
-path = "src/rust/lib.rs"
-
-[profile.release]
-lto = false
-
-[dependencies]
-# Graphics
-glium = "0.17"
-glutin = "0.9"
-rusttype = "0.2"
-time = "0.1"
-# now below:
-# conrod = { version = "0.51", features = ["glium", "winit"] }
-# Types:
-screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git", default-features = false }
-# Networking
-scrs-network = { path = "networking" }
-# Logging
-chrono = "0.4"
-log = "0.3"
-fern = "0.4"
-# Command-line
-clap = "2.22"
-
-[dependencies.conrod]
-# waiting on my finishing https://github.com/PistonDevelopers/conrod/pull/964
-git = "https://github.com/daboross/conrod.git"
-branch = "add-password-text-boxes"
-features = ["glium", "winit"]
-
-[dependencies.conrod_derive]
-# waiting on my finishing https://github.com/PistonDevelopers/conrod/pull/964
-git = "https://github.com/daboross/conrod.git"
-branch = "add-password-text-boxes"
-
-[[bin]]
-name = "scrs"
-doc = false
+[workspace]
+members = [
+    "networking",
+    "conrod-ui",
+]
 
 [replace]
 "arrayvec:0.3.23" = { git = "https://github.com/daboross/arrayvec.git", branch = "serde-0.3" }
 "rusttype:0.2.1" = { git = "https://github.com/daboross/rusttype.git", branch = "possibly-fix-rasterizer-akashi-font" }
-
-[workspace]

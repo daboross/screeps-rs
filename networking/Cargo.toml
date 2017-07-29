@@ -6,7 +6,7 @@ description = "WIP native Sreeps client backend, containing networking and cachi
 
 repository = "https://github.com/daboross/screeps-rs"
 
-readme = "README.md"
+readme = "../README.md"
 
 keywords = []
 categories = ["games", "networking"]
