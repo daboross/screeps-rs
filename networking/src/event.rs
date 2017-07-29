@@ -1,45 +1,22 @@
-use std::borrow::Cow;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
-use {screeps_api, websocket};
+use {screeps_api, websocket, time};
 
-use network::SelectedRooms;
+use screeps_api::RoomName;
 
-use self::Request::*;
 
-use super::LoginDetails;
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Request {
-    Login { details: LoginDetails },
-    MyInfo,
-    RoomTerrain { room_name: screeps_api::RoomName },
-    SetMapSubscribes { rooms: SelectedRooms },
+#[derive(Default, Debug)]
+pub struct MapCacheData {
+    // TODO: should we be re-fetching terrain at some point, or is it alright to leave it forever in memory?
+    // The client can always restart to clear this.
+    pub terrain: HashMap<RoomName, (time::Timespec, screeps_api::TerrainGrid)>,
+    /// Map views, the Timespec is when the data was fetched.
+    pub map_views: HashMap<RoomName, (time::Timespec, screeps_api::websocket::RoomMapViewUpdate)>,
 }
 
-impl Request {
-    pub fn login<'a, T, U>(username: T, password: U) -> Self
-        where T: Into<Cow<'a, str>>,
-              U: Into<Cow<'a, str>>
-    {
-        Login { details: LoginDetails::new(username.into().into_owned(), password.into().into_owned()) }
-    }
-
-    pub fn login_with_details(details: LoginDetails) -> Self {
-        Login { details: details }
-    }
-
-    pub fn my_info() -> Self {
-        Request::MyInfo
-    }
-
-    pub fn room_terrain(room_name: screeps_api::RoomName) -> Self {
-        RoomTerrain { room_name: room_name }
-    }
-
-    pub fn subscribe_map_view(rooms: SelectedRooms) -> Self {
-        SetMapSubscribes { rooms: rooms }
-    }
-}
+pub type MapCache = Rc<RefCell<MapCacheData>>;
 
 #[derive(Debug)]
 pub enum NetworkEvent {

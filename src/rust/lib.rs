@@ -9,21 +9,10 @@ extern crate conrod;
 #[macro_use]
 extern crate conrod_derive;
 // Network
-extern crate futures;
-extern crate tokio_core;
-extern crate hyper;
-extern crate hyper_tls;
-extern crate websocket;
 extern crate screeps_api;
+extern crate scrs_network;
 // Caching
 extern crate time;
-extern crate bincode;
-extern crate rocksdb;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
-extern crate app_dirs;
-extern crate futures_cpupool;
 // Logging
 extern crate chrono;
 #[macro_use]

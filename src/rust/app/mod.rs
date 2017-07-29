@@ -10,7 +10,7 @@ use std::sync::Arc;
 use {conrod, glium, glutin};
 
 use debugging::{FailureUnwrap, FailureUnwrapDebug, FailStage};
-use network::MemCache;
+use network::{MemCache, GlutinNotify};
 
 pub struct App {
     pub ui: conrod::Ui,
@@ -19,7 +19,7 @@ pub struct App {
     pub ids: ui::Ids,
     pub renderer: conrod::backend::glium::Renderer,
     pub net_cache: MemCache,
-    pub notify: Arc<glutin::EventsLoopProxy>,
+    pub notify: GlutinNotify,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
     pub _phantom: PhantomData<()>,
@@ -33,7 +33,7 @@ pub struct AppCell<'a, 'b: 'a, 'c> {
     pub renderer: &'a mut conrod::backend::glium::Renderer,
     pub net_cache: &'a mut MemCache,
     pub additional_rendering: &'c mut Option<ui::AdditionalRender>,
-    pub notify: &'a Arc<glutin::EventsLoopProxy>,
+    pub notify: &'a GlutinNotify,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
     pub _phantom: PhantomData<()>,
@@ -60,7 +60,7 @@ impl App {
             ids: ids,
             renderer: renderer,
             net_cache: MemCache::new(),
-            notify: Arc::new(events.create_proxy()),
+            notify: GlutinNotify::from(Arc::new(events.create_proxy())),
             _phantom: PhantomData,
         }
     }
@@ -74,7 +74,7 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
                 renderer: &'a mut conrod::backend::glium::Renderer,
                 net_cache: &'a mut MemCache,
                 additional_rendering: &'c mut Option<ui::AdditionalRender>,
-                notify: &'a Arc<glutin::EventsLoopProxy>)
+                notify: &'a GlutinNotify)
                 -> Self {
 
         AppCell {

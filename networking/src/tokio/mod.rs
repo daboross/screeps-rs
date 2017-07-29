@@ -1,5 +1,4 @@
 use std::{fmt, thread};
-use std::sync::Arc;
 
 use std::sync::mpsc as std_mpsc;
 use std::sync::mpsc::Sender as StdSender;
@@ -14,10 +13,12 @@ use tokio_core::reactor::{Remote, Core};
 
 use screeps_api::{self, ArcTokenStorage};
 
-use {glutin, hyper, hyper_tls, tokio_core};
+use {hyper, hyper_tls, tokio_core};
 
-use super::{LoginDetails, Request, NetworkEvent, ScreepsConnection, NotLoggedIn};
-use super::cache::disk;
+use event::NetworkEvent;
+use request::{LoginDetails, Request, NotLoggedIn};
+use {ScreepsConnection, Notify};
+use diskcache;
 
 mod types;
 mod http;
@@ -33,7 +34,7 @@ use self::types::{GenericRequest, HttpRequest, WebsocketRequest};
 // process it then re-enter it into the queue with a decreased counter (but only decrease the counter if the
 // login info is different).
 
-pub struct Handler {
+pub struct Handler<N> {
     /// Receiver and sender interacting with the current threaded handler.
     ///
     /// Use std sync channel for (tokio -> main thread), and a futures channel for (main thread -> tokio):
@@ -43,11 +44,11 @@ pub struct Handler {
     /// Tokens saved.
     tokens: ArcTokenStorage,
     /// Disk cache database Handle
-    disk_cache: disk::Cache,
+    disk_cache: diskcache::Cache,
     /// Username and password in case we need to re-login.
     login_info: Option<LoginDetails>,
     /// Window proxy in case we need to restart handler thread.
-    notify: Arc<glutin::EventsLoopProxy>,
+    notify: N,
 }
 
 #[derive(Debug)]
@@ -80,19 +81,21 @@ impl HandlerHandles {
     }
 }
 
-impl Handler {
+impl<N> Handler<N> {
     /// Creates a new requests state, and starts an initial handler with a pending login request.
-    pub fn new(notify: Arc<glutin::EventsLoopProxy>) -> Self {
+    pub fn new(notify: N) -> Self {
         Handler {
             handles: None,
             login_info: None,
             tokens: ArcTokenStorage::default(),
             // TODO: handle this gracefully
-            disk_cache: disk::Cache::load().expect("loading the disk cache failed."),
+            disk_cache: diskcache::Cache::load().expect("loading the disk cache failed."),
             notify: notify,
         }
     }
+}
 
+impl<N: Notify> Handler<N> {
     fn start_handler(&mut self) -> Result<(), NotLoggedIn> {
         let login_details = match self.login_info {
             Some(ref tuple) => tuple.clone(),
@@ -138,7 +141,7 @@ impl Handler {
     }
 }
 
-impl ScreepsConnection for Handler {
+impl<N: Notify> ScreepsConnection for Handler<N> {
     fn send(&mut self, request: Request) -> Result<(), NotLoggedIn> {
         // TODO: find out how to get panic info from the threaded thread, and report that we had to reconnect!
         let request_retry = match self.handles {
@@ -181,7 +184,7 @@ impl ScreepsConnection for Handler {
     }
 }
 
-impl fmt::Debug for Handler {
+impl<N> fmt::Debug for Handler<N> {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         fmt.debug_struct("Handler")
             .field("handles", &self.handles)
@@ -193,23 +196,23 @@ impl fmt::Debug for Handler {
 }
 
 
-struct ThreadedHandler {
+struct ThreadedHandler<N> {
     http_recv: FuturesReceiver<HttpRequest>,
     ws_recv: FuturesReceiver<WebsocketRequest>,
     send: StdSender<NetworkEvent>,
-    notify: Arc<glutin::EventsLoopProxy>,
+    notify: N,
     login: LoginDetails,
     tokens: ArcTokenStorage,
-    disk_cache: disk::Cache,
+    disk_cache: diskcache::Cache,
 }
-impl ThreadedHandler {
+impl<N: Notify> ThreadedHandler<N> {
     fn new(http_recv: FuturesReceiver<HttpRequest>,
            ws_recv: FuturesReceiver<WebsocketRequest>,
            send: StdSender<NetworkEvent>,
-           notify: Arc<glutin::EventsLoopProxy>,
+           notify: N,
            tokens: ArcTokenStorage,
            login: LoginDetails,
-           disk_cache: disk::Cache)
+           disk_cache: diskcache::Cache)
            -> Self {
         ThreadedHandler {
             http_recv: http_recv,

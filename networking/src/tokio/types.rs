@@ -1,6 +1,6 @@
 use screeps_api;
 
-use network::{LoginDetails, SelectedRooms, Request};
+use request::{Request, SelectedRooms, LoginDetails};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum HttpRequest {

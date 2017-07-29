@@ -1,5 +1,4 @@
 use std::time::Duration;
-use std::sync::Arc;
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc::Sender as BoundedFuturesSender;
@@ -10,25 +9,28 @@ use hyper::StatusCode;
 
 use screeps_api::{self, TokenStorage};
 
-use {glutin, hyper};
+use hyper;
 
-use network::{LoginDetails, NetworkEvent};
-use network::cache::disk;
+use request::LoginDetails;
+use event::NetworkEvent;
+
+use diskcache;
+use Notify;
 
 use super::types::HttpRequest;
 use super::utils;
 
-pub struct Executor<C, H, T> {
+pub struct Executor<N, C, H, T> {
     pub handle: Handle,
     pub send_results: StdSender<NetworkEvent>,
-    pub notify: Arc<glutin::EventsLoopProxy>,
-    pub executor_return: BoundedFuturesSender<Executor<C, H, T>>,
+    pub notify: N,
+    pub executor_return: BoundedFuturesSender<Executor<N, C, H, T>>,
     pub login: LoginDetails,
     pub client: screeps_api::Api<C, H, T>,
-    pub disk_cache: disk::Cache,
+    pub disk_cache: diskcache::Cache,
 }
 
-impl<C, H, T> utils::HasClient<C, H, T> for Executor<C, H, T>
+impl<N, C, H, T> utils::HasClient<C, H, T> for Executor<N, C, H, T>
     where C: hyper::client::Connect,
           H: screeps_api::HyperClient<C>,
           T: TokenStorage
@@ -41,10 +43,11 @@ impl<C, H, T> utils::HasClient<C, H, T> for Executor<C, H, T>
     }
 }
 
-impl<C, H, T> Executor<C, H, T>
+impl<N, C, H, T> Executor<N, C, H, T>
     where C: hyper::client::Connect,
           H: screeps_api::HyperClient<C> + 'static + Clone,
-          T: TokenStorage
+          T: TokenStorage,
+          N: Notify
 {
     fn exec_network(self,
                     request: HttpRequest)

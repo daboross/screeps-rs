@@ -7,7 +7,10 @@ use std::collections::HashMap;
 use screeps_api::{self, RoomName};
 use time::{self, Duration};
 
-use network::{LoginState, ErrorEvent, MapCacheData, SelectedRooms, NetworkEvent, Request, ScreepsConnection};
+use super::{LoginState, ErrorEvent};
+use event::{MapCacheData, NetworkEvent};
+use request::{SelectedRooms, Request};
+use ScreepsConnection;
 
 #[derive(Copy, Clone, Debug)]
 struct TimeoutValue<T> {

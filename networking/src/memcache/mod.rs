@@ -5,7 +5,6 @@ use {screeps_api, websocket};
 pub use self::memory::{MemCache, NetworkedMemCache};
 
 mod memory;
-pub mod disk;
 
 pub enum ErrorEvent {
     NotLoggedIn,

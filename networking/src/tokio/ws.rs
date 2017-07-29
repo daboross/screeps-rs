@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::sync::Arc;
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc as futures_mpsc;
@@ -14,9 +13,11 @@ use tokio_core::reactor::Handle;
 use screeps_api::{self, RoomName, NoToken, TokenStorage};
 use screeps_api::websocket::Channel;
 
-use {glutin, hyper, websocket};
+use {hyper, websocket};
 
-use network::{LoginDetails, NetworkEvent};
+use request::LoginDetails;
+use event::NetworkEvent;
+use Notify;
 
 use super::types::WebsocketRequest;
 use super::utils;
@@ -35,10 +36,10 @@ mod types {
 use self::types::{WebsocketMergedStream, WebsocketSink};
 use self::read::ReaderData;
 
-pub struct Executor<C, H, T> {
+pub struct Executor<N, C, H, T> {
     handle: Handle,
     send_results: StdSender<NetworkEvent>,
-    notify: Arc<glutin::EventsLoopProxy>,
+    notify: N,
     subscribed_map_view: Rc<RefCell<HashSet<RoomName>>>,
     http_client: screeps_api::Api<C, H, T>,
     login: LoginDetails,
@@ -51,12 +52,12 @@ pub struct Executor<C, H, T> {
     client: Option<WebsocketSink>,
 }
 
-impl<C, H, T> Executor<C, H, T> {
+impl<N, C, H, T> Executor<N, C, H, T> {
     pub fn new(handle: Handle,
                send_results: StdSender<NetworkEvent>,
                http_client: screeps_api::Api<C, H, T>,
                login: LoginDetails,
-               notify: Arc<glutin::EventsLoopProxy>)
+               notify: N)
                -> Self {
 
         let (raw_sender, raw_receiver) = futures_mpsc::unbounded();
@@ -76,7 +77,7 @@ impl<C, H, T> Executor<C, H, T> {
     }
 }
 
-impl<C, H, T> utils::HasClient<C, H, T> for Executor<C, H, T>
+impl<N, C, H, T> utils::HasClient<C, H, T> for Executor<N, C, H, T>
     where C: hyper::client::Connect + 'static,
           H: screeps_api::HyperClient<C> + 'static,
           T: TokenStorage + 'static
@@ -95,10 +96,11 @@ enum WebsocketRequestOrRaw {
     Raw(u16, websocket::OwnedMessage),
 }
 
-impl<C, H, T> Executor<C, H, T>
+impl<N, C, H, T> Executor<N, C, H, T>
     where C: hyper::client::Connect + 'static,
           H: screeps_api::HyperClient<C> + 'static,
-          T: TokenStorage + 'static
+          T: TokenStorage + 'static,
+          N: Notify + 'static
 {
     pub fn run(mut self, ws_recv: FuturesReceiver<WebsocketRequest>) -> impl Future<Item = (), Error = ()> + 'static {
         ws_recv.map(|m| WebsocketRequestOrRaw::Structured(m))
@@ -244,14 +246,16 @@ impl<C, H, T> Executor<C, H, T>
         connection.send(auth)
             .then(|result| match result {
                 Ok(connection) => {
-                fn finish_ping<C, H, T>(
-                        executor: Executor<C, H, T>,
+                fn finish_ping<N, C, H, T>(
+                        executor: Executor<N, C, H, T>,
                         connection: WebsocketMergedStream,
                         data: Vec<u8>
-                ) -> impl Future<Item = (Executor<C, H, T>, WebsocketMergedStream), Error = Executor<C, H, T>> + 'static
+                ) -> impl Future<Item = (Executor<N, C, H, T>, WebsocketMergedStream),
+                                 Error = Executor<N, C, H, T>> + 'static
                     where C: hyper::client::Connect + 'static,
                           H: screeps_api::HyperClient<C> + 'static,
-                          T: TokenStorage + 'static
+                          T: TokenStorage + 'static,
+                          N: Notify + 'static,
                 {
                         connection.send(websocket::OwnedMessage::Pong(data)).then(|result| match result {
                             Ok(connection) => {
@@ -265,13 +269,15 @@ impl<C, H, T> Executor<C, H, T>
                         })
                     }
 
-                fn test_response<C, H, T>(
-                    executor: Executor<C, H, T>,
+                fn test_response<N, C, H, T>(
+                    executor: Executor<N, C, H, T>,
                     connection: WebsocketMergedStream
-                ) -> impl Future<Item = (Executor<C, H, T>, WebsocketMergedStream), Error = Executor<C, H, T>> + 'static
+                ) -> impl Future<Item = (Executor<N, C, H, T>, WebsocketMergedStream),
+                                 Error = Executor<N, C, H, T>> + 'static
                     where C: hyper::client::Connect + 'static,
                           H: screeps_api::HyperClient<C> + 'static,
-                          T: TokenStorage + 'static
+                          T: TokenStorage + 'static,
+                          N: Notify + 'static
                 {
                         connection.into_future().then(|result| match result {
                         Ok((Some(message), connection)) => {
@@ -444,7 +450,6 @@ impl<C, H, T> Executor<C, H, T>
 
 mod read {
     use std::sync::mpsc::Sender as StdSender;
-    use std::sync::Arc;
 
     use futures::{future, Future, Stream};
     use tokio_core::reactor::Handle;
@@ -454,17 +459,15 @@ mod read {
     use screeps_api::{self, TokenStorage};
     use screeps_api::websocket::{ChannelUpdate, SockjsMessage, ScreepsMessage};
 
-
-    use glutin;
-
-    use network::NetworkEvent;
+    use event::NetworkEvent;
+    use Notify;
     use super::types::WebsocketStream;
 
-    pub struct ReaderData<T> {
+    pub struct ReaderData<N, T> {
         handle: Handle,
         send_results: StdSender<NetworkEvent>,
         tokens: T,
-        notify: Arc<glutin::EventsLoopProxy>,
+        notify: N,
         raw_send_sender: UnboundedSender<(u16, OwnedMessage)>,
         connection_id: u16,
     }
@@ -473,11 +476,11 @@ mod read {
     #[derive(Debug)]
     struct ExitNow;
 
-    impl<T: TokenStorage> ReaderData<T> {
+    impl<N: Notify, T: TokenStorage> ReaderData<N, T> {
         pub fn new(handle: Handle,
                    send_results: StdSender<NetworkEvent>,
                    tokens: T,
-                   notify: Arc<glutin::EventsLoopProxy>,
+                   notify: N,
                    send: UnboundedSender<(u16, OwnedMessage)>,
                    connection_id: u16)
                    -> Self {

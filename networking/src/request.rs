@@ -1,11 +1,48 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::borrow::Cow;
+
 use std::ops::Range;
+use std::sync::Arc;
+use std::fmt;
 
-use time;
-use screeps_api::{self, RoomName};
+use screeps_api::RoomName;
 
+use self::Request::*;
+
+/// Error for not being logged in, and trying to send a query requiring authentication.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct NotLoggedIn;
+
+/// Login username/password.
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub struct LoginDetails {
+    inner: Arc<(String, String)>,
+}
+
+impl LoginDetails {
+    /// Creates a new login detail struct.
+    pub fn new(username: String, password: String) -> Self {
+        LoginDetails { inner: Arc::new((username, password)) }
+    }
+
+    /// Gets the username.
+    pub fn username(&self) -> &str {
+        &self.inner.0
+    }
+
+    /// Gets the password.
+    pub fn password(&self) -> &str {
+        &self.inner.1
+    }
+}
+
+impl fmt::Debug for LoginDetails {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("LoginDetails")
+            .field("username", &self.username())
+            .field("password", &"<redacted>")
+            .finish()
+    }
+}
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct SelectedRooms {
     pub start: RoomName,
@@ -92,14 +129,35 @@ impl Iterator for IterSelectedRooms {
         }
     }
 }
-
-#[derive(Default, Debug)]
-pub struct MapCacheData {
-    // TODO: should we be re-fetching terrain at some point, or is it alright to leave it forever in memory?
-    // The client can always restart to clear this.
-    pub terrain: HashMap<RoomName, (time::Timespec, screeps_api::TerrainGrid)>,
-    /// Map views, the Timespec is when the data was fetched.
-    pub map_views: HashMap<RoomName, (time::Timespec, screeps_api::websocket::RoomMapViewUpdate)>,
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub enum Request {
+    Login { details: LoginDetails },
+    MyInfo,
+    RoomTerrain { room_name: RoomName },
+    SetMapSubscribes { rooms: SelectedRooms },
 }
 
-pub type MapCache = Rc<RefCell<MapCacheData>>;
+impl Request {
+    pub fn login<'a, T, U>(username: T, password: U) -> Self
+        where T: Into<Cow<'a, str>>,
+              U: Into<Cow<'a, str>>
+    {
+        Login { details: LoginDetails::new(username.into().into_owned(), password.into().into_owned()) }
+    }
+
+    pub fn login_with_details(details: LoginDetails) -> Self {
+        Login { details: details }
+    }
+
+    pub fn my_info() -> Self {
+        Request::MyInfo
+    }
+
+    pub fn room_terrain(room_name: RoomName) -> Self {
+        RoomTerrain { room_name: room_name }
+    }
+
+    pub fn subscribe_map_view(rooms: SelectedRooms) -> Self {
+        SetMapSubscribes { rooms: rooms }
+    }
+}

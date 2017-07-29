@@ -4,7 +4,7 @@ use screeps_api::{self, NoToken, TokenStorage};
 
 use hyper;
 
-use network::LoginDetails;
+use request::LoginDetails;
 
 pub trait HasClient<C, H, T>
     where C: hyper::client::Connect,
