@@ -91,8 +91,11 @@ pub fn create_ui(app: &mut AppCell,
             state.scroll.update(view_rect, update);
         }
 
-        let ScrollState { scroll_x: saved_room_scroll_x, scroll_y: saved_room_scroll_y, zoom_factor, .. } =
-            state.scroll;
+        let ScrollState { scroll_x: saved_room_scroll_x,
+                          scroll_y: saved_room_scroll_y,
+                          zoom_factor,
+                          selected_room,
+                          .. } = state.scroll;
 
         let room_size = view_rect.w().min(view_rect.h()) * zoom_multiplier_from_factor(zoom_factor);
 
@@ -126,48 +129,10 @@ pub fn create_ui(app: &mut AppCell,
                count_x,
                count_y);
 
-        // let rooms = (0..count_x)
-        //     .flat_map(move |rel_x| {
-        //         (0..count_y).map(move |rel_y| {
-        //             let room_name = initial_room + (rel_x, rel_y);
-
-        //             let x = view_rect.left() + extra_scroll_x + (rel_x as f64) * room_size;
-        //             let y = view_rect.bottom() + extra_scroll_y + (rel_y as f64) * room_size;
-
-        //             (room_name, Rect::from_corners([x, y], [x + room_size, y + room_size]))
-        //         })
-        //     })
-        //     .flat_map(|(room_name, rect)| match net.room_terrain(room_name) {
-        //         Some(terrain) => {
-        //             debug!("found room terrain {}", room_name);
-        //             Some((rect, terrain.clone()))
-        //         }
-        //         None => {
-        //             debug!("didn't find room terrain {}", room_name);
-        //             None
-        //         }
-        //     })
-        //     .collect::<Vec<(Rect, Rc<screeps_api::TerrainGrid>)>>();
-
-        // // fetch rooms just outside the boundary as well so we can have smoother scrolling
-        // for &rel_x in [-1, count_x + 1].iter() {
-        //     for rel_y in -1..count_y + 1 {
-        //         let _ = net.room_terrain(initial_room + (rel_x, rel_y));
-        //     }
-        // }
-        // for &rel_y in [-1, count_y + 1].iter() {
-        //     for rel_x in -1..count_x + 1 {
-        //         let _ = net.room_terrain(initial_room + (rel_x, rel_y));
-        //     }
-        // }
-
-        // if !rooms.is_empty() {
-        //     *app.additional_rendering = Some(AdditionalRender::room_grid(ids.body, rooms));
-        // }
-
+        // fetch rooms just outside the boundary as well so we can have smoother scrolling
         let rooms_to_fetch = SelectedRooms::new((initial_room - (1, 1))..(initial_room + (count_x + 1, count_y + 1)));
 
-        let room_data = net.view_rooms(rooms_to_fetch, None).clone();
+        let room_data = net.view_rooms(rooms_to_fetch, selected_room).clone();
 
         let rooms_to_view = SelectedRooms::new(initial_room..(initial_room + (count_x, count_y)));
         let offset = MapViewOffset::new(extra_scroll_x, extra_scroll_y, room_size);
@@ -194,11 +159,14 @@ fn bound_zoom(zoom_factor: f64) -> f64 {
 
 #[derive(Copy, Clone, Debug)]
 pub struct ScrollState {
-    // The horizontal scroll, in fractional rooms. 1 is 1 room.
+    /// The horizontal scroll, in fractional rooms. 1 is 1 room.
     scroll_x: f64,
-    // The vertical scroll, in fractional rooms. 1 is 1 room.
+    /// The vertical scroll, in fractional rooms. 1 is 1 room.
     scroll_y: f64,
+    /// The zoom factor, 1.0 is a room the same size as the minimum screen dimension.
     zoom_factor: f64,
+    /// The room name currently selected.
+    selected_room: Option<screeps_api::RoomName>,
 }
 
 impl Default for ScrollState {
@@ -207,6 +175,7 @@ impl Default for ScrollState {
             scroll_x: 0.0,
             scroll_y: 0.0,
             zoom_factor: 1.0,
+            selected_room: None,
         }
     }
 }
@@ -223,11 +192,75 @@ struct ScrollUpdate {
     zoom_mouse_rel_x: f64,
     /// If zoom_change != 0.0, this is the y position the mouse was at, relative to the center of the widget.
     zoom_mouse_rel_y: f64,
+    /// If the screen was clicked, the relative (x, y) that it was clicked at.
+    clicked: Option<(f64, f64)>,
 }
 
 impl ScrollState {
+    fn room_name_and_xy_from_rel_pos(&self,
+                                     view_rect: Rect,
+                                     mouse_rel_x: f64,
+                                     mouse_rel_y: f64)
+                                     -> (screeps_api::RoomName, (f64, f64)) {
+        let abs_mouse_x = view_rect.w() / 2.0 + mouse_rel_x;
+        let abs_mouse_y = view_rect.h() / 2.0 + mouse_rel_y;
+
+        let ScrollState { scroll_x: saved_room_scroll_x, scroll_y: saved_room_scroll_y, zoom_factor, .. } = *self;
+
+        let room_size = view_rect.w().min(view_rect.h()) * zoom_multiplier_from_factor(zoom_factor);
+
+        let room_scroll_x = saved_room_scroll_x - (view_rect.w() / room_size / 2.0) + (abs_mouse_x / room_size);
+        let room_scroll_y = saved_room_scroll_y - (view_rect.h() / room_size / 2.0) + (abs_mouse_y / room_size);
+
+        let initial_room = screeps_api::RoomName {
+            x_coord: room_scroll_x.floor() as i32,
+            y_coord: room_scroll_y.floor() as i32,
+        };
+
+        return (initial_room, (0.0, 0.0));
+
+        // let extra_scroll_x = -(room_scroll_x % 1.0) * room_size;
+        // let extra_scroll_y = -(room_scroll_y % 1.0) * room_size;
+        // let extra_scroll_x = if extra_scroll_x > 0.0 {
+        //     extra_scroll_x - room_size
+        // } else {
+        //     extra_scroll_x
+        // };
+        // let extra_scroll_y = if extra_scroll_y > 0.0 {
+        //     extra_scroll_y - room_size
+        // } else {
+        //     extra_scroll_y
+        // };
+        // let count_x = ((view_rect.w() - extra_scroll_x) / room_size).ceil() as i32;
+        // let count_y = ((view_rect.h() - extra_scroll_y) / room_size).ceil() as i32;
+
+        // let extra_scroll_x = -(room_scroll_x % 1.0) * room_size;
+        // let extra_scroll_y = -(room_scroll_y % 1.0) * room_size;
+        // let extra_scroll_x = if extra_scroll_x > 0.0 {
+        //     extra_scroll_x - room_size
+        // } else {
+        //     extra_scroll_x
+        // };
+        // let extra_scroll_y = if extra_scroll_y > 0.0 {
+        //     extra_scroll_y - room_size
+        // } else {
+        //     extra_scroll_y
+        // };
+
+        // unimplemented!()
+    }
+
     fn update(&mut self, view_rect: Rect, update: ScrollUpdate) {
         let room_size_unit = view_rect.w().min(view_rect.h());
+
+        if let Some((clicked_x, clicked_y)) = update.clicked {
+            let (room_clicked, _) = self.room_name_and_xy_from_rel_pos(view_rect, clicked_x, clicked_y);
+
+            info!("Clicked {}", room_clicked);
+
+            self.selected_room = Some(room_clicked);
+        }
+
         if update.zoom_change != 0.0 {
             let abs_mouse_x = view_rect.w() / 2.0 + update.zoom_mouse_rel_x;
             let abs_mouse_y = view_rect.h() / 2.0 + update.zoom_mouse_rel_y;
@@ -318,6 +351,11 @@ mod room_view_widget {
                         if scroll.modifiers.is_empty() {
                             update.zoom_change -= scroll.y;
                             changed = true;
+                        }
+                    }
+                    Event::Click(click) => {
+                        if click.button == MouseButton::Left {
+                            update.clicked = Some((click.xy[0], click.xy[1]));
                         }
                     }
                     _ => {}

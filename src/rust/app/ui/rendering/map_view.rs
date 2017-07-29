@@ -1,10 +1,12 @@
 use std::cell::Ref;
+use std::collections::HashMap;
 
 use conrod::{widget, Rect};
 use conrod::render::{Primitive, PrimitiveKind};
 use screeps_api::RoomName;
 use screeps_api::endpoints::room_terrain::{TerrainGrid, TerrainType};
 use screeps_api::websocket::RoomMapViewUpdate;
+use screeps_api::websocket::types::room::objects::KnownRoomObject;
 
 use network::{SelectedRooms, MapCacheData};
 
@@ -205,6 +207,35 @@ impl MapIteratorState {
     }
 }
 
+
+/// Logic put into separate function because it's useful both when creating an iterator
+/// and when advancing that iterator.
+fn find_next_detail_view_room<'a>(data: &Ref<'a, MapCacheData>,
+                                  start_room_name: RoomName,
+                                  horizontal_room_count: i16,
+                                  vertical_room_count: i16)
+                                  -> Option<(i16, i16, Ref<'a, HashMap<String, KnownRoomObject>>)> {
+
+    let selected_room = data.detail_view.as_ref().map(|x| x.0);
+
+
+    match selected_room {
+        Some(selected_room_name) => {
+            let diff = selected_room_name - start_room_name;
+            let x_diff = diff.0 as i16;
+            let y_diff = diff.1 as i16;
+            if x_diff < 0 || x_diff > horizontal_room_count || y_diff < 0 || y_diff > vertical_room_count {
+                None // cut out out-of-bounds rooms.
+            } else {
+                Some((x_diff,
+                      y_diff,
+                      Ref::map(Ref::clone(data),
+                               |data| &data.detail_view.as_ref().unwrap().1)))
+            }
+        }
+        None => None,
+    }
+}
 struct ConstructedViewIterator<'a> {
     data: Ref<'a, MapCacheData>,
     render_id: widget::Id,
@@ -229,6 +260,11 @@ enum ConstructedViewIteratorState<'a> {
         current_relative_room_x: i16,
         current_relative_room_y: i16,
         inner_state: MapIteratorState,
+    },
+    RoomRender {
+        current_room: Ref<'a, HashMap<String, KnownRoomObject>>,
+        current_relative_room_x: i16,
+        current_relative_room_y: i16,
     },
     Done,
 }
@@ -492,12 +528,56 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                                     inner_state: new_state,
                                 })
                             }
-                            None => Some(ConstructedViewIteratorState::Done),
+                            None => {
+                                match find_next_detail_view_room(&self.data,
+                                                                 self.start_room_name,
+                                                                 self.horizontal_room_count,
+                                                                 self.vertical_room_count) {
+                                    Some((new_relative_room_x, new_relative_room_y, new_view)) => {
+                                        Some(ConstructedViewIteratorState::RoomRender {
+                                            current_room: new_view,
+                                            current_relative_room_x: new_relative_room_x,
+                                            current_relative_room_y: new_relative_room_y,
+                                        })
+                                    }
+                                    None => Some(ConstructedViewIteratorState::Done),
+                                }
+                            }
                         };
                     }
                 }
 
                 Some(value)
+            }
+            ConstructedViewIteratorState::RoomRender { ref mut current_relative_room_x,
+                                                       ref mut current_relative_room_y,
+                                                       ref mut current_room } => {
+                // TODO: this is a placeholder to make sure we're getting clicking on the screen right.
+                next_state = Some(ConstructedViewIteratorState::Done);
+                let room_screen_size = self.room_screen_size;
+                let start_room_screen_pos = self.start_room_screen_pos;
+                let render_id = self.render_id;
+                let render_scizzor = self.render_scizzor;
+                let current_relative_room_x = *current_relative_room_x;
+                let current_relative_room_y = *current_relative_room_y;
+                let terrain_square_length = room_screen_size / 50.0;
+
+                let x_pos = start_room_screen_pos.0 +
+                            room_screen_size * (current_relative_room_x as f64 + (((0.0 as f64) - 1.0) / 50.0)) +
+                            terrain_square_length;
+                let y_pos = start_room_screen_pos.1 +
+                            room_screen_size * (current_relative_room_y as f64 + ((49.0 - (0.0 as f64)) / 50.0)) +
+                            terrain_square_length;
+
+                let visual_length = terrain_square_length * 50.0;
+
+                Some(Primitive {
+                    id: render_id,
+                    kind: PrimitiveKind::Rectangle { color: KEEPER_COLOR },
+                    scizzor: render_scizzor,
+                    rect: Rect::from_corners([x_pos, y_pos - visual_length],
+                                             [x_pos + visual_length, y_pos]),
+                })
             }
             ConstructedViewIteratorState::Done => None,
         };
@@ -556,7 +636,21 @@ pub fn render<'a>(id: widget::Id,
                         inner_state: new_state,
                     }
                 }
-                None => ConstructedViewIteratorState::Done,
+                None => {
+                    match find_next_detail_view_room(&data,
+                                                     start_room_name,
+                                                     horizontal_room_count,
+                                                     vertical_room_count) {
+                        Some((new_relative_room_x, new_relative_room_y, new_view)) => {
+                            ConstructedViewIteratorState::RoomRender {
+                                current_room: new_view,
+                                current_relative_room_x: new_relative_room_x,
+                                current_relative_room_y: new_relative_room_y,
+                            }
+                        }
+                        None => ConstructedViewIteratorState::Done,
+                    }
+                }
             }
         }
     };
