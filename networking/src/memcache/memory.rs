@@ -204,7 +204,6 @@ impl MemCache {
         }
     }
 
-    /// TODO: this method should return 'failure events' which the UI can then cache and add to a notification list.
     pub fn align<'a, T, F>(&'a mut self, handler: &'a mut T, mut error_callback: F) -> NetworkedMemCache<'a, T, F>
         where T: ScreepsConnection,
               F: FnMut(ErrorEvent)
