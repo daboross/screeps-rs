@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use {screeps_api, websocket, time};
 
 use screeps_api::RoomName;
-
+use screeps_api::websocket::types::room::objects::KnownRoomObject;
 
 #[derive(Default, Debug)]
 pub struct MapCacheData {
@@ -20,8 +20,7 @@ pub struct MapCacheData {
     /// TODO: possibly keep history for each for an 'instant replay' functionality.
     /// TODO: handle unknown room objects better: given that we know they have at least an 'x' and 'y' property, we
     /// could definitely do a question mark in the UI with a drop-down for JSON properties the object has.
-    pub detail_view: Option<(RoomName,
-                                HashMap<String, screeps_api::websocket::types::room::objects::KnownRoomObject>)>,
+    pub detail_view: Option<(RoomName, HashMap<String, KnownRoomObject>)>,
 }
 
 pub type MapCache = Rc<RefCell<MapCacheData>>;

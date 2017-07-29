@@ -90,6 +90,7 @@ pub struct MemCache {
     rooms: Rc<RefCell<MapCacheData>>,
     requested_rooms: HashMap<RoomName, time::Timespec>,
     last_requested_room_info: Option<SelectedRooms>,
+    last_requested_focus_room: Option<RoomName>,
 }
 
 pub struct NetworkedMemCache<'a, T: ScreepsConnection + 'a, F: FnMut(ErrorEvent) + 'a> {
@@ -245,7 +246,7 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
         holder.get()
     }
 
-    pub fn view_rooms(&mut self, rooms: SelectedRooms) -> &Rc<RefCell<MapCacheData>> {
+    pub fn view_rooms(&mut self, rooms: SelectedRooms, focused: Option<RoomName>) -> &Rc<RefCell<MapCacheData>> {
         if Some(rooms) != self.cache.last_requested_room_info {
             let borrowed = Ref::map(self.cache.rooms.borrow(), |cache| &cache.terrain);
             let rerequest_if_before = time::get_time() - Duration::seconds(90);
@@ -266,6 +267,11 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
                 }
             }
             if let Err(e) = self.handler.send(Request::subscribe_map_view(rooms)) {
+                (self.error_callback)(e.into())
+            }
+        }
+        if focused != self.cache.last_requested_focus_room {
+            if let Err(e) = self.handler.send(Request::focus_room(focused)) {
                 (self.error_callback)(e.into())
             }
         }

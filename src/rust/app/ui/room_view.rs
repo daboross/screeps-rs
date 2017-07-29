@@ -167,7 +167,7 @@ pub fn create_ui(app: &mut AppCell,
 
         let rooms_to_fetch = SelectedRooms::new((initial_room - (1, 1))..(initial_room + (count_x + 1, count_y + 1)));
 
-        let room_data = net.view_rooms(rooms_to_fetch).clone();
+        let room_data = net.view_rooms(rooms_to_fetch, None).clone();
 
         let rooms_to_view = SelectedRooms::new(initial_room..(initial_room + (count_x, count_y)));
         let offset = MapViewOffset::new(extra_scroll_x, extra_scroll_y, room_size);

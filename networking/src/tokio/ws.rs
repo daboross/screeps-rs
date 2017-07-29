@@ -428,6 +428,9 @@ impl<N, C, H, T> Executor<N, C, H, T>
                     Channel::RoomMapView { room_name } => {
                         executor.subscribed_map_view.borrow_mut().insert(room_name);
                     }
+                    Channel::RoomDetail { room_name } => {
+                        executor.subscribed_room_view.set(Some(room_name));
+                    }
                     other => {
                         warn!("websocket executor not prepared to handle registering channel {}",
                               other);
@@ -448,6 +451,11 @@ impl<N, C, H, T> Executor<N, C, H, T>
                 match channel {
                     Channel::RoomMapView { room_name } => {
                         executor.subscribed_map_view.borrow_mut().remove(&room_name);
+                    }
+                    Channel::RoomDetail { room_name } => {
+                        if Some(room_name) == executor.subscribed_room_view.get() {
+                            executor.subscribed_room_view.set(None);
+                        }
                     }
                     other => {
                         warn!("websocket executor not prepared to handle registering channel {}",
