@@ -138,19 +138,20 @@ impl MemCache {
 
                                         obj_data.update(obj_update.clone())
                                             .map_err(|e| {
-                                                ErrorEvent::room_view(format!(
-                                                    "update for id {} in room {} did not parse: \
-                                                    existing value: {:?}, failed update: {:?}, error: {}",
-                                                                              id, room_name,
+                                                ErrorEvent::room_view(format!("update for id {} in room {} did not \
+                                                                               parse: existing value: {:?}, failed \
+                                                                               update: {:?}, error: {}",
+                                                                              id,
+                                                                              room_name,
                                                                               obj_data,
-                                                                              obj_update, e))
+                                                                              obj_update,
+                                                                              e))
                                             })?;
                                     }
                                     Vacant(entry) => {
                                         entry.insert(serde_json::from_value(obj_update.clone()).map_err(|e| {
-                                                ErrorEvent::room_view(format!(
-                                                    "data for id {} in room {} did not parse: \
-                                                    failed json: {:?}, error: {}",
+                                                ErrorEvent::room_view(format!("data for id {} in room {} did not \
+                                                                               parse: failed json: {:?}, error: {}",
                                                                               id,
                                                                               room_name,
                                                                               obj_update,
