@@ -89,17 +89,21 @@ script:
 - |
   # cargo-fmt --write-mode=diff
   if $TEST_FMT; then
+      cd conrod-ui &&
+      cargo fmt --verbose -- --write-mode=diff &&
+      cd ../networking &&
       cargo fmt --verbose -- --write-mode=diff
   fi
 - |
   # cargo test
   if $RUN_TEST; then
-      cargo test --target "$TARGET" --verbose -j 1
+      cargo test --target "$TARGET" -p scrs-network --verbose -j 1
+      cargo test --target "$TARGET" -p screeps-rs --verbose -j 1
   fi
 - |
   # cargo build --release
   if $RUN_DEPLOY; then
-      cargo build --target "$TARGET" --verbose --release -j 1
+      cargo build --target "$TARGET" -p screeps-rs --verbose --release -j 1
   fi
 before_deploy:
 - cargo build --target "$TARGET" --verbose --release -j 1
