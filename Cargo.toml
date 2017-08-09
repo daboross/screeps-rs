@@ -2,7 +2,6 @@
 members = [
     "networking",
     "conrod-ui",
-    "scrs-jvm",
 ]
 
 [replace]
