@@ -8,7 +8,7 @@ use screeps_api;
 use network::{self, SelectedRooms};
 use super::rendering::MapViewOffset;
 
-use super::super::AppCell;
+use app::AppCell;
 use super::{GraphicsState, PanelStates, frame, left_panel_available, AdditionalRender};
 use self::room_view_widget::ScrollableRoomView;
 

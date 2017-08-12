@@ -5,7 +5,7 @@ use time;
 
 use network::{self, ScreepsConnection, Request};
 
-use super::super::AppCell;
+use app::AppCell;
 use super::{GraphicsState, frame, HEADER_HEIGHT};
 use super::room_view::RoomViewState;
 

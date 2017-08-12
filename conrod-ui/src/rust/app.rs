@@ -1,13 +1,7 @@
-pub mod events;
-pub mod ui;
-
-pub use self::events::{EventLoop, Event};
-pub use self::ui::{GraphicsState, create_ui};
-
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use {conrod, glium, glutin};
+use {conrod, glium, glutin, ui};
 
 use network::{MemCache, GlutinNotify};
 

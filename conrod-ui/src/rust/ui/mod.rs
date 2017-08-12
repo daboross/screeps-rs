@@ -8,7 +8,7 @@ use std::mem;
 use conrod::{self, color, Colorable, Labelable, Positionable, Sizeable, Widget, Borderable};
 use conrod::widget::*;
 
-use super::AppCell;
+use app::AppCell;
 use network;
 
 pub use self::login_screen::LoginScreenState;
