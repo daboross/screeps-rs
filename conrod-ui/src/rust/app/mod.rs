@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use {conrod, glium, glutin};
 
-use debugging::{FailureUnwrap, FailureUnwrapDebug, FailStage};
 use network::{MemCache, GlutinNotify};
 
 pub struct App {
@@ -44,12 +43,12 @@ impl App {
         let (width, height) = window.gl_window()
             .window()
             .get_inner_size()
-            .uw(FailStage::Startup, "Failed to get window size.");
+            .expect("expected getting window size to succeed.");
 
         // Create UI.
         let mut ui = conrod::UiBuilder::new([width as f64, height as f64]).build();
         let renderer = conrod::backend::glium::Renderer::new(&window)
-            .uwd(FailStage::Startup, "Failed to load conrod glium renderer.");
+            .expect("expected loading conrod glium renderer to succeed.");
         let image_map = conrod::image::Map::new();
         let ids = ui::Ids::new(ui.widget_id_generator());
 
