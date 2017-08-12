@@ -92,7 +92,7 @@ impl<N, C, H, T> Executor<N, C, H, T>
                                     warn!("error occurred fetching terrain cache: {}", e);
                                 }
                                 Box::new(self.client
-                                    .room_terrain(room_name.to_string())
+                                    .room_terrain("shard0", room_name.to_string())
                                     .map(|data| data.terrain)
                                     .then(move |result| {
                                         if let Ok(ref data) = result {
