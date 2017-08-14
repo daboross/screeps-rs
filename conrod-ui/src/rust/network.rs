@@ -9,7 +9,9 @@ pub struct GlutinNotify(Arc<glutin::EventsLoopProxy>);
 
 impl scrs_network::Notify for GlutinNotify {
     fn wakeup(&self) -> Result<(), scrs_network::Disconnected> {
-        self.0.wakeup().map_err(|glutin::EventsLoopClosed| scrs_network::Disconnected)
+        self.0
+            .wakeup()
+            .map_err(|glutin::EventsLoopClosed| scrs_network::Disconnected)
     }
 }
 

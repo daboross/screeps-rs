@@ -8,7 +8,7 @@ use futures_cpupool::CpuPool;
 use futures::{future, stream, Future, Stream};
 use tokio_core::reactor;
 
-use {app_dirs, bincode, time, rocksdb};
+use {app_dirs, bincode, rocksdb, time};
 
 static APP_DESC: app_dirs::AppInfo = app_dirs::AppInfo {
     author: "OpenScreeps",
@@ -24,7 +24,7 @@ fn keep_terrain_for() -> time::Duration {
 }
 
 mod errors {
-    use std::{io, fmt};
+    use std::{fmt, io};
     use {app_dirs, rocksdb};
 
     #[derive(Debug)]
@@ -101,21 +101,25 @@ impl Cache {
         // run once on app startup, then once every hour.
         let stream = stream::once(Ok(())).merge(reactor::Interval::new(Duration::from_secs(60 * 60), handle)?);
 
-        handle.spawn(stream.then(move |result| {
-            if let Err(e) = result {
-                warn!("error with cache cleanup interval: {}", e);
-            }
+        handle.spawn(
+            stream
+                .then(move |result| {
+                    if let Err(e) = result {
+                        warn!("error with cache cleanup interval: {}", e);
+                    }
 
-            let db = db.clone();
+                    let db = db.clone();
 
-            pool.spawn_fn(move || {
-                if let Err(e) = cleanup_database(&db) {
-                    warn!("error cleaning up cache database: {}", e);
-                }
+                    pool.spawn_fn(move || {
+                        if let Err(e) = cleanup_database(&db) {
+                            warn!("error cleaning up cache database: {}", e);
+                        }
 
-                future::ok(())
-            })
-        }).fold((), |(), _| future::ok(())));
+                        future::ok(())
+                    })
+                })
+                .fold((), |(), _| future::ok(())),
+        );
 
         Ok(())
     }
@@ -133,7 +137,8 @@ impl Cache {
 
         let sent_database = self.database.clone();
 
-        self.access_pool.spawn_fn(move || sent_database.put(&key, &value))
+        self.access_pool
+            .spawn_fn(move || sent_database.put(&key, &value))
     }
 
     pub fn get_terrain(&self, room: RoomName) -> impl Future<Item = Option<TerrainGrid>, Error = rocksdb::Error> {
@@ -141,34 +146,35 @@ impl Cache {
 
         let sent_database = self.database.clone();
 
-        self.access_pool
-            .spawn_fn(move || {
-                let parsed = match sent_database.get(&key)? {
-                    Some(db_vector) => {
-                        match bincode::deserialize_from::<_, CacheEntry<_>, _>(&mut &*db_vector, bincode::Infinite) {
-                            Ok(v) => Some(v.data),
-                            Err(e) => {
-                                warn!("cache database entry found corrupted.\
-                                   \nEntry: (terrain:{})\
-                                   \nDecode error: {}\
-                                   \nRemoving data.",
-                                      room,
-                                      e);
+        self.access_pool.spawn_fn(move || {
+            let parsed = match sent_database.get(&key)? {
+                Some(db_vector) => {
+                    match bincode::deserialize_from::<_, CacheEntry<_>, _>(&mut &*db_vector, bincode::Infinite) {
+                        Ok(v) => Some(v.data),
+                        Err(e) => {
+                            warn!(
+                                "cache database entry found corrupted.\
+                                 \nEntry: (terrain:{})\
+                                 \nDecode error: {}\
+                                 \nRemoving data.",
+                                room,
+                                e
+                            );
 
-                                if let Err(e) = sent_database.delete(&key) {
-                                    warn!("deleting cache entry (terrain:{}) failed: {}", room, e);
+                            if let Err(e) = sent_database.delete(&key) {
+                                warn!("deleting cache entry (terrain:{}) failed: {}", room, e);
 
-                                }
-
-                                None
                             }
+
+                            None
                         }
                     }
-                    None => None,
-                };
+                }
+                None => None,
+            };
 
-                Ok(parsed)
-            })
+            Ok(parsed)
+        })
     }
 }
 
@@ -179,9 +185,7 @@ fn cleanup_database(db: &rocksdb::DB) -> Result<(), rocksdb::Error> {
         let parsed_key = match CacheKey::decode(&key) {
             Ok(v) => v,
             Err(e) => {
-                warn!("when clearing old cache: unknown key '{:?}' found (read error: {}). Deleting.",
-                      key,
-                      e);
+                warn!("when clearing old cache: unknown key '{:?}' found (read error: {}). Deleting.", key, e);
                 db.delete(&key)?;
                 continue;
             }
@@ -190,10 +194,8 @@ fn cleanup_database(db: &rocksdb::DB) -> Result<(), rocksdb::Error> {
         let now = time::get_time();
 
         let keep_result = match parsed_key {
-            CacheKey::Terrain(_) => {
-                bincode::deserialize::<CacheEntry<TerrainGrid>>(&value)
-                    .map(|entry| now - entry.fetched < keep_terrain_for())
-            }
+            CacheKey::Terrain(_) => bincode::deserialize::<CacheEntry<TerrainGrid>>(&value)
+                .map(|entry| now - entry.fetched < keep_terrain_for()),
         };
 
         match keep_result {
@@ -205,9 +207,7 @@ fn cleanup_database(db: &rocksdb::DB) -> Result<(), rocksdb::Error> {
                 db.delete(&key)?;
             }
             Err(e) => {
-                debug!("removing cache entry ({:?}): invalid data ({})",
-                       parsed_key,
-                       e);
+                debug!("removing cache entry ({:?}): invalid data ({})", parsed_key, e);
                 db.delete(&key)?;
             }
         }
@@ -218,8 +218,7 @@ fn cleanup_database(db: &rocksdb::DB) -> Result<(), rocksdb::Error> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct CacheEntry<T> {
-    #[serde(with = "timespec_serialize_seconds")]
-    fetched: time::Timespec,
+    #[serde(with = "timespec_serialize_seconds")] fetched: time::Timespec,
     data: T,
 }
 
@@ -248,16 +247,18 @@ impl CacheKey {
 
 mod timespec_serialize_seconds {
     use time::Timespec;
-    use serde::{Deserialize, Serializer, Deserializer};
+    use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(date: &Timespec, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_i64(date.sec)
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Timespec, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         Ok(Timespec::new(i64::deserialize(deserializer)?, 0))
     }

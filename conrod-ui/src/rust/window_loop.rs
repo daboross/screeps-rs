@@ -4,7 +4,7 @@ use glium::Surface;
 use app::{App, AppCell};
 use events::Event;
 
-use {conrod, glutin, ui, events};
+use {conrod, events, glutin, ui};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
     let mut events = events::EventLoop::new(events);
@@ -41,13 +41,12 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                                 input: glutin::KeyboardInput {
                                     virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
                                     ..
-                                } ,
+                                },
                                 ..
                             } |
                             glutin::WindowEvent::Closed => control.exit(),
                             // glutin::Event::Focused(true) |
-                            glutin::WindowEvent::Refresh |
-                            glutin::WindowEvent::Resized(..) => {
+                            glutin::WindowEvent::Refresh | glutin::WindowEvent::Resized(..) => {
                                 app.ui.needs_redraw();
                                 control.needs_update();
                             }
@@ -67,25 +66,29 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                 let mut additional_render = None;
 
                 {
-                    let App { ref mut ui,
-                              ref display,
-                              ref mut image_map,
-                              ref mut ids,
-                              ref mut renderer,
-                              ref mut net_cache,
-                              ref notify,
-                              .. } = app;
+                    let App {
+                        ref mut ui,
+                        ref display,
+                        ref mut image_map,
+                        ref mut ids,
+                        ref mut renderer,
+                        ref mut net_cache,
+                        ref notify,
+                        ..
+                    } = app;
 
                     let mut ui_cell = ui.set_widgets();
 
-                    let mut cell = AppCell::cell(&mut ui_cell,
-                                                 display,
-                                                 image_map,
-                                                 ids,
-                                                 renderer,
-                                                 net_cache,
-                                                 &mut additional_render,
-                                                 notify);
+                    let mut cell = AppCell::cell(
+                        &mut ui_cell,
+                        display,
+                        image_map,
+                        ids,
+                        renderer,
+                        net_cache,
+                        &mut additional_render,
+                        notify,
+                    );
 
                     // Create main screen.
                     ui::create_ui(&mut cell, &mut state);
@@ -96,7 +99,8 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     use ui::BACKGROUND_RGB;
 
                     match additional_render {
-                        Some(r) => app.renderer.fill(&app.display, r.merged_walker(primitives), &app.image_map),
+                        Some(r) => app.renderer
+                            .fill(&app.display, r.merged_walker(primitives), &app.image_map),
                         None => app.renderer.fill(&app.display, primitives, &app.image_map),
                     }
 
@@ -105,7 +109,9 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     app.renderer
                         .draw(&app.display, &mut target, &app.image_map)
                         .expect("expected drawing GUI to display to succeed");
-                    target.finish().expect("expected frame to remain unfinished at this point in the main loop.");
+                    target
+                        .finish()
+                        .expect("expected frame to remain unfinished at this point in the main loop.");
                 }
             }
         }

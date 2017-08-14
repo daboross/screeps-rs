@@ -1,6 +1,6 @@
 use screeps_api;
 
-use request::{Request, SelectedRooms, LoginDetails};
+use request::{LoginDetails, Request, SelectedRooms};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum HttpRequest {
@@ -26,9 +26,9 @@ impl From<Request> for GenericRequest {
         match r {
             Request::Login { details } => GenericRequest::Http(HttpRequest::Login { details: details }),
             Request::MyInfo => GenericRequest::Http(HttpRequest::MyInfo),
-            Request::RoomTerrain { room_name } => {
-                GenericRequest::Http(HttpRequest::RoomTerrain { room_name: room_name })
-            }
+            Request::RoomTerrain { room_name } => GenericRequest::Http(HttpRequest::RoomTerrain {
+                room_name: room_name,
+            }),
             Request::SetMapSubscribes { rooms } => {
                 GenericRequest::Websocket(WebsocketRequest::SetMapSubscribes { rooms: rooms })
             }
@@ -42,7 +42,9 @@ impl Into<Request> for HttpRequest {
         match self {
             HttpRequest::Login { details } => Request::Login { details: details },
             HttpRequest::MyInfo => Request::MyInfo,
-            HttpRequest::RoomTerrain { room_name } => Request::RoomTerrain { room_name: room_name },
+            HttpRequest::RoomTerrain { room_name } => Request::RoomTerrain {
+                room_name: room_name,
+            },
         }
     }
 }

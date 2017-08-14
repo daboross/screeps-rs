@@ -1,23 +1,26 @@
 // impl Trait
 #![feature(conservative_impl_trait)]
 // Network
+
 extern crate futures;
-extern crate tokio_core;
 extern crate hyper;
 extern crate hyper_tls;
-extern crate websocket;
 extern crate screeps_api;
+extern crate tokio_core;
+extern crate websocket;
 // Caching
-extern crate time;
+
+extern crate app_dirs;
 extern crate bincode;
+extern crate futures_cpupool;
 extern crate rocksdb;
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde;
 extern crate serde_json;
-extern crate app_dirs;
-extern crate futures_cpupool;
+extern crate time;
 // Logging
+
 #[macro_use]
 extern crate log;
 
@@ -27,9 +30,9 @@ pub mod memcache;
 pub mod diskcache;
 pub mod tokio;
 
-pub use request::{Request, NotLoggedIn, LoginDetails, SelectedRooms};
-pub use event::{NetworkEvent, MapCache, MapCacheData};
-pub use memcache::{MemCache, LoginState, ErrorEvent};
+pub use request::{LoginDetails, NotLoggedIn, Request, SelectedRooms};
+pub use event::{MapCache, MapCacheData, NetworkEvent};
+pub use memcache::{ErrorEvent, LoginState, MemCache};
 pub use tokio::Handler as TokioHandler;
 
 /// The backend connection handler for handling requests. Interface for `memcache` module to use.

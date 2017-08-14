@@ -56,14 +56,22 @@ before_script:
   fi
 - |
   # cargo install rustfmt
-  if $TEST_FMT && ! which rustfmt; then
-      echo "installing rustfmt"
-      travis_wait cargo install rustfmt --verbose --vers 0.7.1 -j 1
+  if $TEST_FMT; then
+      echo "formatting enabled"
+      if which rustfmt > /dev/null && [[ $(rustup run nightly rustfmt --version) != "0.2.1-nightly (16920fb"* ]]; then
+          echo "uninstalling old rustfmt"
+          cargo uninstall rustfmt;
+      fi
+      if ! which rustfmt > /dev/null; then
+          echo "installing rustfmt"
+          cargo install rustfmt-nightly --git https://github.com/rust-lang-nursery/rustfmt.git --rev 16920fb -j 1
+          cargo install rustfmt-nightly --vers 0.2.1 -j 1
+      fi
   fi
 - |
   # rustfmt --version
   if $TEST_FMT; then
-      rustfmt --version
+      rustup run nightly rustfmt --version
   fi
 - c++ --version
 - |

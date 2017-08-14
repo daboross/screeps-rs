@@ -1,6 +1,6 @@
 use std::default::Default;
 
-use conrod::{color, Colorable, Positionable, Widget, Rect, Borderable, Sizeable};
+use conrod::{color, Borderable, Colorable, Positionable, Rect, Sizeable, Widget};
 use conrod::widget::*;
 
 use screeps_api;
@@ -9,7 +9,7 @@ use network::{self, SelectedRooms};
 use super::rendering::MapViewOffset;
 
 use app::AppCell;
-use super::{GraphicsState, PanelStates, frame, left_panel_available, AdditionalRender};
+use super::{frame, left_panel_available, AdditionalRender, GraphicsState, PanelStates};
 use self::room_view_widget::ScrollableRoomView;
 
 const ZOOM_MODIFIER: f64 = 1.0 / 500.0;
@@ -37,15 +37,19 @@ impl<T: network::ScreepsConnection> RoomViewState<T> {
     }
 }
 
-pub fn create_ui(app: &mut AppCell,
-                 state: &mut RoomViewState,
-                 update: &mut Option<GraphicsState>)
-                 -> Result<(), network::NotLoggedIn> {
-    let AppCell { ref mut ui, ref mut net_cache, ref mut ids, .. } = *app;
+pub fn create_ui(
+    app: &mut AppCell,
+    state: &mut RoomViewState,
+    update: &mut Option<GraphicsState>,
+) -> Result<(), network::NotLoggedIn> {
+    let AppCell {
+        ref mut ui,
+        ref mut net_cache,
+        ref mut ids,
+        ..
+    } = *app;
 
-    let body = Canvas::new()
-        .color(color::TRANSPARENT)
-        .border(0.0);
+    let body = Canvas::new().color(color::TRANSPARENT).border(0.0);
 
     frame(ui, ids, ids.body, body);
 
@@ -85,17 +89,20 @@ pub fn create_ui(app: &mut AppCell,
                 .set(ids.username_gcl_header, ui);
         }
 
-        let view_rect = ui.rect_of(ids.room_display).expect("expected room_display to have a rect");
+        let view_rect = ui.rect_of(ids.room_display)
+            .expect("expected room_display to have a rect");
 
         if let Some(update) = scroll_update {
             state.scroll.update(view_rect, update);
         }
 
-        let ScrollState { scroll_x: saved_room_scroll_x,
-                          scroll_y: saved_room_scroll_y,
-                          zoom_factor,
-                          selected_room,
-                          .. } = state.scroll;
+        let ScrollState {
+            scroll_x: saved_room_scroll_x,
+            scroll_y: saved_room_scroll_y,
+            zoom_factor,
+            selected_room,
+            ..
+        } = state.scroll;
 
         let room_size = view_rect.w().min(view_rect.h()) * zoom_multiplier_from_factor(zoom_factor);
 
@@ -121,13 +128,15 @@ pub fn create_ui(app: &mut AppCell,
         };
         let count_x = ((view_rect.w() - extra_scroll_x) / room_size).ceil() as i32;
         let count_y = ((view_rect.h() - extra_scroll_y) / room_size).ceil() as i32;
-        debug!("scroll_state: ({:?}) initial room: {}. extra scroll: ({}, {}). count: ({}, {})",
-               state.scroll,
-               initial_room,
-               extra_scroll_x,
-               extra_scroll_y,
-               count_x,
-               count_y);
+        debug!(
+            "scroll_state: ({:?}) initial room: {}. extra scroll: ({}, {}). count: ({}, {})",
+            state.scroll,
+            initial_room,
+            extra_scroll_x,
+            extra_scroll_y,
+            count_x,
+            count_y
+        );
 
         // fetch rooms just outside the boundary as well so we can have smoother scrolling
         let rooms_to_fetch = SelectedRooms::new((initial_room - (1, 1))..(initial_room + (count_x + 1, count_y + 1)));
@@ -197,15 +206,21 @@ struct ScrollUpdate {
 }
 
 impl ScrollState {
-    fn room_name_and_xy_from_rel_pos(&self,
-                                     view_rect: Rect,
-                                     mouse_rel_x: f64,
-                                     mouse_rel_y: f64)
-                                     -> (screeps_api::RoomName, (f64, f64)) {
+    fn room_name_and_xy_from_rel_pos(
+        &self,
+        view_rect: Rect,
+        mouse_rel_x: f64,
+        mouse_rel_y: f64,
+    ) -> (screeps_api::RoomName, (f64, f64)) {
         let abs_mouse_x = view_rect.w() / 2.0 + mouse_rel_x;
         let abs_mouse_y = view_rect.h() / 2.0 + mouse_rel_y;
 
-        let ScrollState { scroll_x: saved_room_scroll_x, scroll_y: saved_room_scroll_y, zoom_factor, .. } = *self;
+        let ScrollState {
+            scroll_x: saved_room_scroll_x,
+            scroll_y: saved_room_scroll_y,
+            zoom_factor,
+            ..
+        } = *self;
 
         let room_size = view_rect.w().min(view_rect.h()) * zoom_multiplier_from_factor(zoom_factor);
 
@@ -295,8 +310,7 @@ mod room_view_widget {
 
     #[derive(WidgetCommon)]
     pub(super) struct ScrollableRoomView {
-        #[conrod(common_builder)]
-        common: widget::CommonBuilder,
+        #[conrod(common_builder)] common: widget::CommonBuilder,
         style: Style,
     }
 
@@ -331,7 +345,9 @@ mod room_view_widget {
             use conrod::event::Widget as Event;
             use conrod::input::MouseButton;
 
-            let widget::UpdateArgs { id, ui, mut state, .. } = args;
+            let widget::UpdateArgs {
+                id, ui, mut state, ..
+            } = args;
 
             let input = ui.widget_input(id);
 
@@ -340,29 +356,24 @@ mod room_view_widget {
 
             for event in input.events() {
                 match event {
-                    Event::Drag(drag) => {
-                        if drag.button == MouseButton::Left {
-                            update.scrolled_map_x -= drag.delta_xy[0];
-                            update.scrolled_map_y -= drag.delta_xy[1];
-                            changed = true;
-                        }
-                    }
-                    Event::Scroll(scroll) => {
-                        if scroll.modifiers.is_empty() {
-                            update.zoom_change -= scroll.y;
-                            changed = true;
-                        }
-                    }
-                    Event::Click(click) => {
-                        if click.button == MouseButton::Left {
-                            update.clicked = Some((click.xy[0], click.xy[1]));
-                        }
-                    }
+                    Event::Drag(drag) => if drag.button == MouseButton::Left {
+                        update.scrolled_map_x -= drag.delta_xy[0];
+                        update.scrolled_map_y -= drag.delta_xy[1];
+                        changed = true;
+                    },
+                    Event::Scroll(scroll) => if scroll.modifiers.is_empty() {
+                        update.zoom_change -= scroll.y;
+                        changed = true;
+                    },
+                    Event::Click(click) => if click.button == MouseButton::Left {
+                        update.clicked = Some((click.xy[0], click.xy[1]));
+                    },
                     _ => {}
                 }
             }
             if update.zoom_change != 0.0 {
-                let mouse = input.mouse()
+                let mouse = input
+                    .mouse()
                     .expect("expected mouse to be captured by widget while scroll event is received");
                 let rel_xy = mouse.rel_xy();
                 update.zoom_mouse_rel_x = rel_xy[0];

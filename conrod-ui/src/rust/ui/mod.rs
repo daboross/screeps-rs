@@ -5,7 +5,7 @@ mod rendering;
 use std::default::Default;
 use std::mem;
 
-use conrod::{self, color, Colorable, Labelable, Positionable, Sizeable, Widget, Borderable};
+use conrod::{self, color, Borderable, Colorable, Labelable, Positionable, Sizeable, Widget};
 use conrod::widget::*;
 
 use app::AppCell;
@@ -84,10 +84,12 @@ pub fn create_ui(app: &mut AppCell, state: &mut GraphicsState) {
     }
 }
 
-fn left_panel_available(ui: &mut conrod::UiCell,
-                        ids: &Ids,
-                        state: &mut PanelStates,
-                        update: &mut Option<GraphicsState>) {
+fn left_panel_available(
+    ui: &mut conrod::UiCell,
+    ids: &Ids,
+    state: &mut PanelStates,
+    update: &mut Option<GraphicsState>,
+) {
     let left_toggle_clicks = Button::new()
         // style
         .color(color::DARK_CHARCOAL)
@@ -111,26 +113,37 @@ fn left_panel_available(ui: &mut conrod::UiCell,
             left_panel_panel_open(ui, ids, update);
 
             if left_toggle_clicks % 2 == 1 ||
-               left_toggle_clicks == 0 && ui.global_input().current.mouse.buttons.pressed().next().is_some() &&
-               ui.global_input()
-                .current
-                .widget_capturing_mouse
-                .or_else(|| ui.global_input().current.widget_under_mouse)
-                .map(|capturing| {
-                    capturing != ids.left_panel_toggle &&
-                    !ui.widget_graph().does_recursive_edge_exist(ids.left_panel_canvas, capturing, |_| true) &&
-                    !ui.widget_graph().does_recursive_edge_exist(ids.left_panel_toggle, capturing, |_| true)
-                })
-                .unwrap_or(true) {
+                left_toggle_clicks == 0 &&
+                    ui.global_input()
+                        .current
+                        .mouse
+                        .buttons
+                        .pressed()
+                        .next()
+                        .is_some() &&
+                    ui.global_input()
+                        .current
+                        .widget_capturing_mouse
+                        .or_else(|| ui.global_input().current.widget_under_mouse)
+                        .map(|capturing| {
+                            capturing != ids.left_panel_toggle &&
+                                !ui.widget_graph().does_recursive_edge_exist(
+                                    ids.left_panel_canvas,
+                                    capturing,
+                                    |_| true,
+                                ) &&
+                                !ui.widget_graph()
+                                    .does_recursive_edge_exist(ids.left_panel_toggle, capturing, |_| true)
+                        })
+                        .unwrap_or(true)
+            {
 
                 state.left = MenuState::Closed;
             }
         }
-        MenuState::Closed => {
-            if left_toggle_clicks % 2 == 1 {
-                state.left = MenuState::Open;
-            }
-        }
+        MenuState::Closed => if left_toggle_clicks % 2 == 1 {
+            state.left = MenuState::Open;
+        },
     }
 }
 

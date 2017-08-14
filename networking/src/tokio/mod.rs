@@ -9,15 +9,15 @@ use futures::sync::mpsc::UnboundedSender as FuturesSender;
 use futures::sync::mpsc::UnboundedReceiver as FuturesReceiver;
 
 use futures::{future, Future, Stream};
-use tokio_core::reactor::{Remote, Core};
+use tokio_core::reactor::{Core, Remote};
 
 use screeps_api::{self, ArcTokenStorage};
 
 use {hyper, hyper_tls, tokio_core};
 
 use event::NetworkEvent;
-use request::{LoginDetails, Request, NotLoggedIn};
-use {ScreepsConnection, Notify};
+use request::{LoginDetails, NotLoggedIn, Request};
+use {Notify, ScreepsConnection};
 use diskcache;
 
 mod types;
@@ -60,11 +60,12 @@ struct HandlerHandles {
 }
 
 impl HandlerHandles {
-    fn new(remote: Remote,
-           http_send: FuturesSender<HttpRequest>,
-           ws_send: FuturesSender<WebsocketRequest>,
-           recv: StdReceiver<NetworkEvent>)
-           -> Self {
+    fn new(
+        remote: Remote,
+        http_send: FuturesSender<HttpRequest>,
+        ws_send: FuturesSender<WebsocketRequest>,
+        recv: StdReceiver<NetworkEvent>,
+    ) -> Self {
         HandlerHandles {
             remote: remote,
             http_send: http_send,
@@ -118,24 +119,25 @@ impl<N: Notify> Handler<N> {
         if let Some(values) = queued {
             for v in values {
                 // fake these coming from the new handler.
-                handler_send.send(v).expect("expected handles to still be in current scope");
+                handler_send
+                    .send(v)
+                    .expect("expected handles to still be in current scope");
             }
         }
 
-        let handler = ThreadedHandler::new(handler_http_recv,
-                                           handler_ws_recv,
-                                           handler_send,
-                                           self.notify.clone(),
-                                           self.tokens.clone(),
-                                           login_details.clone(),
-                                           self.disk_cache.clone());
+        let handler = ThreadedHandler::new(
+            handler_http_recv,
+            handler_ws_recv,
+            handler_send,
+            self.notify.clone(),
+            self.tokens.clone(),
+            login_details.clone(),
+            self.disk_cache.clone(),
+        );
 
         let remote = handler.start_async_and_get_remote();
 
-        self.handles = Some(HandlerHandles::new(remote,
-                                                http_send_to_handler,
-                                                ws_send_to_handler,
-                                                recv_from_handler));
+        self.handles = Some(HandlerHandles::new(remote, http_send_to_handler, ws_send_to_handler, recv_from_handler));
 
         Ok(())
     }
@@ -145,12 +147,10 @@ impl<N: Notify> ScreepsConnection for Handler<N> {
     fn send(&mut self, request: Request) -> Result<(), NotLoggedIn> {
         // TODO: find out how to get panic info from the threaded thread, and report that we had to reconnect!
         let request_retry = match self.handles {
-            Some(ref mut handles) => {
-                match handles.send(request) {
-                    Ok(()) => None,
-                    Err(request) => Some(request),
-                }
-            }
+            Some(ref mut handles) => match handles.send(request) {
+                Ok(()) => None,
+                Err(request) => Some(request),
+            },
             None => Some(request),
         };
 
@@ -159,8 +159,11 @@ impl<N: Notify> ScreepsConnection for Handler<N> {
                 self.login_info = Some(details.clone());
             }
             self.start_handler()?;
-            let send = self.handles.as_ref().expect("expected handles to exist after freshly restarting");
-            send.send(request).expect("expected freshly started handler to still be running");
+            let send = self.handles
+                .as_ref()
+                .expect("expected handles to exist after freshly restarting");
+            send.send(request)
+                .expect("expected freshly started handler to still be running");
         }
 
         Ok(())
@@ -168,13 +171,11 @@ impl<N: Notify> ScreepsConnection for Handler<N> {
 
     fn poll(&mut self) -> Option<NetworkEvent> {
         let (evt, reset) = match self.handles {
-            Some(ref mut handles) => {
-                match handles.recv.try_recv() {
-                    Ok(v) => (Some(v), false),
-                    Err(std_mpsc::TryRecvError::Empty) => (None, false),
-                    Err(std_mpsc::TryRecvError::Disconnected) => (None, true),
-                }
-            }
+            Some(ref mut handles) => match handles.recv.try_recv() {
+                Ok(v) => (Some(v), false),
+                Err(std_mpsc::TryRecvError::Empty) => (None, false),
+                Err(std_mpsc::TryRecvError::Disconnected) => (None, true),
+            },
             None => (None, false),
         };
         if reset {
@@ -206,14 +207,15 @@ struct ThreadedHandler<N> {
     disk_cache: diskcache::Cache,
 }
 impl<N: Notify> ThreadedHandler<N> {
-    fn new(http_recv: FuturesReceiver<HttpRequest>,
-           ws_recv: FuturesReceiver<WebsocketRequest>,
-           send: StdSender<NetworkEvent>,
-           notify: N,
-           tokens: ArcTokenStorage,
-           login: LoginDetails,
-           disk_cache: diskcache::Cache)
-           -> Self {
+    fn new(
+        http_recv: FuturesReceiver<HttpRequest>,
+        ws_recv: FuturesReceiver<WebsocketRequest>,
+        send: StdSender<NetworkEvent>,
+        notify: N,
+        tokens: ArcTokenStorage,
+        login: LoginDetails,
+        disk_cache: diskcache::Cache,
+    ) -> Self {
         ThreadedHandler {
             http_recv: http_recv,
             ws_recv: ws_recv,
@@ -228,29 +230,45 @@ impl<N: Notify> ThreadedHandler<N> {
     fn start_async_and_get_remote(self) -> tokio_core::reactor::Remote {
         let (temp_sender, temp_receiver) = std_mpsc::channel();
         thread::spawn(|| self.run(temp_sender));
-        temp_receiver.recv().expect("expected newly created channel to not be dropped, perhaps tokio core panicked?")
+        temp_receiver
+            .recv()
+            .expect("expected newly created channel to not be dropped, perhaps tokio core panicked?")
     }
 
     fn run(self, send_remote_to: StdSender<tokio_core::reactor::Remote>) {
         use futures::Sink;
 
-        let ThreadedHandler { http_recv, ws_recv, send, notify, login, tokens, disk_cache } = self;
+        let ThreadedHandler {
+            http_recv,
+            ws_recv,
+            send,
+            notify,
+            login,
+            tokens,
+            disk_cache,
+        } = self;
 
         let mut core = Core::new().expect("expected tokio core to succeed startup.");
 
         {
             // move into scope to drop.
             let sender = send_remote_to;
-            sender.send(core.remote()).expect("expected sending remote to spawning thread to succeed.");
+            sender
+                .send(core.remote())
+                .expect("expected sending remote to spawning thread to succeed.");
         }
 
         let handle = core.handle();
 
-        disk_cache.start_cache_clean_task(&handle).expect("expected starting database cleanup interval to succeed");
+        disk_cache
+            .start_cache_clean_task(&handle)
+            .expect("expected starting database cleanup interval to succeed");
 
         let hyper = hyper::Client::configure()
-            .connector(hyper_tls::HttpsConnector::new(4, &handle)
-                .expect("expected HTTPS handler construction with default parameters to succeed."))
+            .connector(
+                hyper_tls::HttpsConnector::new(4, &handle)
+                    .expect("expected HTTPS handler construction with default parameters to succeed."),
+            )
             .build(&handle);
 
         let client = screeps_api::Api::with_tokens(hyper, tokens);
@@ -261,33 +279,39 @@ impl<N: Notify> ThreadedHandler<N> {
         // fill with 5 tokens.
         for _ in 0..5 {
             let cloned_send = token_pool_send.clone();
-            assert!(token_pool_send.start_send(http::Executor {
-                    handle: handle.clone(),
-                    send_results: send.clone(),
-                    notify: notify.clone(),
-                    executor_return: cloned_send,
-                    login: login.clone(),
-                    client: client.clone(),
-                    disk_cache: disk_cache.clone(),
-                })
-                .expect("expected newly created channel to still be in scope")
-                .is_ready());
+            assert!(
+                token_pool_send
+                    .start_send(http::Executor {
+                        handle: handle.clone(),
+                        send_results: send.clone(),
+                        notify: notify.clone(),
+                        executor_return: cloned_send,
+                        login: login.clone(),
+                        client: client.clone(),
+                        disk_cache: disk_cache.clone(),
+                    })
+                    .expect("expected newly created channel to still be in scope")
+                    .is_ready()
+            );
         }
 
-        let ws_executor = ws::Executor::new(handle.clone(),
-                                            send.clone(),
-                                            client.clone(),
-                                            login.clone(),
-                                            notify.clone());
+        let ws_executor =
+            ws::Executor::new(handle.clone(), send.clone(), client.clone(), login.clone(), notify.clone());
 
         // zip ensures that we have one token for each request! this way we'll
         // never have more than 5 concurrent requests.
-        let result = core.run(http_recv.zip(token_pool_recv).and_then(|(request, executor)| {
-            // execute request returns the executor to the token pool at the end.
-            handle.spawn(executor.execute(request));
+        let result = core.run(
+            http_recv
+                .zip(token_pool_recv)
+                .and_then(|(request, executor)| {
+                    // execute request returns the executor to the token pool at the end.
+                    handle.spawn(executor.execute(request));
 
-            future::ok(())
-            }).fold((), |(), _| future::ok(())).join(ws_executor.run(ws_recv)));
+                    future::ok(())
+                })
+                .fold((), |(), _| future::ok(()))
+                .join(ws_executor.run(ws_recv)),
+        );
 
         if let Err(()) = result {
             warn!("Unexpected error when running network core.");

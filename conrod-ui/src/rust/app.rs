@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use {conrod, glium, glutin, ui};
 
-use network::{MemCache, GlutinNotify};
+use network::{GlutinNotify, MemCache};
 
 pub struct App {
     pub ui: conrod::Ui,
@@ -34,15 +34,16 @@ pub struct AppCell<'a, 'b: 'a, 'c> {
 
 impl App {
     pub fn new(window: glium::Display, events: &glutin::EventsLoop) -> Self {
-        let (width, height) = window.gl_window()
+        let (width, height) = window
+            .gl_window()
             .window()
             .get_inner_size()
             .expect("expected getting window size to succeed.");
 
         // Create UI.
         let mut ui = conrod::UiBuilder::new([width as f64, height as f64]).build();
-        let renderer = conrod::backend::glium::Renderer::new(&window)
-            .expect("expected loading conrod glium renderer to succeed.");
+        let renderer =
+            conrod::backend::glium::Renderer::new(&window).expect("expected loading conrod glium renderer to succeed.");
         let image_map = conrod::image::Map::new();
         let ids = ui::Ids::new(ui.widget_id_generator());
 
@@ -60,15 +61,16 @@ impl App {
 }
 
 impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
-    pub fn cell(cell: &'a mut conrod::UiCell<'b>,
-                display: &'a glium::Display,
-                image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
-                ids: &'a mut ui::Ids,
-                renderer: &'a mut conrod::backend::glium::Renderer,
-                net_cache: &'a mut MemCache,
-                additional_rendering: &'c mut Option<ui::AdditionalRender>,
-                notify: &'a GlutinNotify)
-                -> Self {
+    pub fn cell(
+        cell: &'a mut conrod::UiCell<'b>,
+        display: &'a glium::Display,
+        image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
+        ids: &'a mut ui::Ids,
+        renderer: &'a mut conrod::backend::glium::Renderer,
+        net_cache: &'a mut MemCache,
+        additional_rendering: &'c mut Option<ui::AdditionalRender>,
+        notify: &'a GlutinNotify,
+    ) -> Self {
 
         AppCell {
             ui: cell,

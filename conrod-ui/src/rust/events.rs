@@ -1,4 +1,4 @@
-use std::{time, thread};
+use std::{thread, time};
 
 use glutin;
 
@@ -48,13 +48,15 @@ impl EventLoop {
     }
 
     fn poll_events<F>(&mut self, callback: F)
-        where F: FnMut(glutin::Event)
+    where
+        F: FnMut(glutin::Event),
     {
         self.events_loop.poll_events(callback);
     }
 
     fn wait_events<F>(&mut self, mut callback: F)
-        where F: FnMut(glutin::Event)
+    where
+        F: FnMut(glutin::Event),
     {
         self.events_loop.run_forever(|event| {
             callback(event);
@@ -66,7 +68,8 @@ impl EventLoop {
     /// Gets the next event. If there are no glutin events available, this either returns `Event::UpdateUi` or waits
     /// for an event depending on if the UI needs updating
     pub fn run_loop<F>(&mut self, mut callback: F)
-        where F: FnMut(&mut LoopControl, Event)
+    where
+        F: FnMut(&mut LoopControl, Event),
     {
         let mut control = LoopControl {
             ui_needs_update: 3,

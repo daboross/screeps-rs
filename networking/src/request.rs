@@ -21,7 +21,9 @@ pub struct LoginDetails {
 impl LoginDetails {
     /// Creates a new login detail struct.
     pub fn new(username: String, password: String) -> Self {
-        LoginDetails { inner: Arc::new((username, password)) }
+        LoginDetails {
+            inner: Arc::new((username, password)),
+        }
     }
 
     /// Gets the username.
@@ -52,7 +54,7 @@ pub struct SelectedRooms {
 impl SelectedRooms {
     #[inline]
     pub fn new(rooms: Range<RoomName>) -> Self {
-        use std::cmp::{min, max};
+        use std::cmp::{max, min};
 
         let start = RoomName {
             x_coord: min(rooms.start.x_coord, rooms.end.x_coord),
@@ -72,7 +74,7 @@ impl SelectedRooms {
     #[inline]
     pub fn contains(&self, room: &RoomName) -> bool {
         (self.start.x_coord < room.x_coord && room.x_coord < self.end.x_coord) &&
-        (self.start.y_coord < room.y_coord && room.y_coord < self.end.y_coord)
+            (self.start.y_coord < room.y_coord && room.y_coord < self.end.y_coord)
     }
 }
 
@@ -133,10 +135,13 @@ pub enum Request {
 
 impl Request {
     pub fn login<'a, T, U>(username: T, password: U) -> Self
-        where T: Into<Cow<'a, str>>,
-              U: Into<Cow<'a, str>>
+    where
+        T: Into<Cow<'a, str>>,
+        U: Into<Cow<'a, str>>,
     {
-        Login { details: LoginDetails::new(username.into().into_owned(), password.into().into_owned()) }
+        Login {
+            details: LoginDetails::new(username.into().into_owned(), password.into().into_owned()),
+        }
     }
 
     pub fn login_with_details(details: LoginDetails) -> Self {
@@ -148,7 +153,9 @@ impl Request {
     }
 
     pub fn room_terrain(room_name: RoomName) -> Self {
-        RoomTerrain { room_name: room_name }
+        RoomTerrain {
+            room_name: room_name,
+        }
     }
 
     pub fn subscribe_map_view(rooms: SelectedRooms) -> Self {

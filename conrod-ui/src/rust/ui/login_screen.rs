@@ -1,12 +1,12 @@
-use conrod::{self, color, Colorable, Labelable, Positionable, Sizeable, Widget, Borderable};
+use conrod::{self, color, Borderable, Colorable, Labelable, Positionable, Sizeable, Widget};
 use conrod::widget::*;
 
 use time;
 
-use network::{self, ScreepsConnection, Request};
+use network::{self, Request, ScreepsConnection};
 
 use app::AppCell;
-use super::{GraphicsState, frame, HEADER_HEIGHT};
+use super::{frame, GraphicsState, HEADER_HEIGHT};
 use super::room_view::RoomViewState;
 
 const LOGIN_WIDTH: conrod::Scalar = 300.0;
@@ -37,7 +37,10 @@ impl<T: network::ScreepsConnection> Default for LoginScreenState<T> {
 
 impl<T: network::ScreepsConnection> LoginScreenState<T> {
     pub fn new(network: T) -> Self {
-        LoginScreenState { network: Some(network), ..LoginScreenState::default() }
+        LoginScreenState {
+            network: Some(network),
+            ..LoginScreenState::default()
+        }
     }
 
     pub fn into_network(self) -> Option<T> {
@@ -74,13 +77,16 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         }
     }
 
-    let AppCell { ref mut ui, ref mut ids, ref notify, .. } = *app;
+    let AppCell {
+        ref mut ui,
+        ref mut ids,
+        ref notify,
+        ..
+    } = *app;
 
     use conrod::widget::text_box::Event as TextBoxEvent;
 
-    let body = Canvas::new()
-        .color(color::CHARCOAL)
-        .border(0.0);
+    let body = Canvas::new().color(color::CHARCOAL).border(0.0);
     frame(ui, ids, ids.body, body);
 
     let header_canvas = Canvas::new()
@@ -115,13 +121,14 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         // set
         .set(ids.login_canvas, ui);
 
-    fn textbox_field(text: &mut String,
-                     parent: Id,
-                     id: Id,
-                     width: conrod::Scalar,
-                     hide: bool,
-                     ui: &mut conrod::UiCell)
-                     -> bool {
+    fn textbox_field(
+        text: &mut String,
+        parent: Id,
+        id: Id,
+        width: conrod::Scalar,
+        hide: bool,
+        ui: &mut conrod::UiCell,
+    ) -> bool {
         let events = TextBox::new(&text)
             // style
             .w_h(width, LOGIN_LOWER_SECTION_HEIGHT - LOGIN_PADDING * 2.0)
@@ -180,20 +187,24 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
     };
 
     // Username field
-    let username_enter_pressed = textbox_field(&mut state.username,
-                                               ids.login_username_canvas,
-                                               ids.login_username_textbox,
-                                               LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
-                                               false,
-                                               ui);
+    let username_enter_pressed = textbox_field(
+        &mut state.username,
+        ids.login_username_canvas,
+        ids.login_username_textbox,
+        LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
+        false,
+        ui,
+    );
 
     // Password field
-    let password_enter_pressed = textbox_field(&mut state.password,
-                                               ids.login_password_canvas,
-                                               ids.login_password_textbox,
-                                               LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
-                                               true,
-                                               ui);
+    let password_enter_pressed = textbox_field(
+        &mut state.password,
+        ids.login_password_canvas,
+        ids.login_password_textbox,
+        LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
+        true,
+        ui,
+    );
 
     let submit_pressed = Button::new()
         // style
@@ -228,7 +239,8 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
     if exit_pressed {
         *update = Some(GraphicsState::Exit);
     } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0 &&
-              state.password.len() > 0 {
+        state.password.len() > 0
+    {
         match state.network {
             Some(ref mut net) => {
                 debug!("sending login request to existing network.");
@@ -238,7 +250,8 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
             None => {
                 debug!("sending login request to new network.");
                 let mut network = network::ThreadedHandler::new((*notify).clone());
-                network.send(network::Request::login(&*state.username, &*state.password))
+                network
+                    .send(network::Request::login(&*state.username, &*state.password))
                     .expect("Cannot receive login error for login request.");
                 state.network = Some(network);
                 state.pending_since = Some(time::now_utc());

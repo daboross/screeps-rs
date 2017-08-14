@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use {screeps_api, websocket, time};
+use {screeps_api, time, websocket};
 
 use screeps_api::RoomName;
 use screeps_api::websocket::types::room::objects::KnownRoomObject;
@@ -31,14 +31,18 @@ pub enum NetworkEvent {
         username: String,
         result: Result<(), screeps_api::Error>,
     },
-    MyInfo { result: Result<screeps_api::MyInfo, screeps_api::Error>, },
+    MyInfo {
+        result: Result<screeps_api::MyInfo, screeps_api::Error>,
+    },
     RoomTerrain {
         room_name: screeps_api::RoomName,
         result: Result<screeps_api::TerrainGrid, screeps_api::Error>,
     },
     WebsocketHttpError { error: screeps_api::Error },
     WebsocketError { error: websocket::WebSocketError },
-    WebsocketParseError { error: screeps_api::websocket::parsing::ParseError, },
+    WebsocketParseError {
+        error: screeps_api::websocket::parsing::ParseError,
+    },
     MapView {
         room_name: screeps_api::RoomName,
         result: screeps_api::websocket::RoomMapViewUpdate,

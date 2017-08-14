@@ -7,9 +7,9 @@ use std::collections::HashMap;
 use screeps_api::{self, RoomName};
 use time::{self, Duration};
 
-use super::{LoginState, ErrorEvent};
+use super::{ErrorEvent, LoginState};
 use event::{MapCacheData, NetworkEvent};
-use request::{SelectedRooms, Request};
+use request::{Request, SelectedRooms};
 use ScreepsConnection;
 
 #[derive(Copy, Clone, Debug)]
@@ -49,27 +49,21 @@ impl<T> TimeoutValue<T> {
         let now = time::get_time();
 
         match self.value {
-            Some((_, last_request)) => {
-                match cache_for {
-                    Some(cache_for) => {
-                        if last_request + cache_for > now {
-                            false
-                        } else {
-                            match self.last_send {
-                                Some(send_time) => send_time + timeout_for_request < now,
-                                None => true,
-                            }
-                        }
+            Some((_, last_request)) => match cache_for {
+                Some(cache_for) => if last_request + cache_for > now {
+                    false
+                } else {
+                    match self.last_send {
+                        Some(send_time) => send_time + timeout_for_request < now,
+                        None => true,
                     }
-                    None => false,
-                }
-            }
-            None => {
-                match self.last_send {
-                    Some(t) => t + timeout_for_request < now,
-                    None => true,
-                }
-            }
+                },
+                None => false,
+            },
+            None => match self.last_send {
+                Some(t) => t + timeout_for_request < now,
+                None => true,
+            },
         }
     }
 
@@ -106,7 +100,10 @@ impl MemCache {
 
     fn event(&mut self, event: NetworkEvent) -> Result<(), ErrorEvent> {
         match event {
-            NetworkEvent::Login { username: _, result } => self.login.event(result)?,
+            NetworkEvent::Login {
+                username: _,
+                result,
+            } => self.login.event(result)?,
             NetworkEvent::MyInfo { result } => self.my_info.event(result)?,
             NetworkEvent::RoomTerrain { room_name, result } => {
                 let terrain = result?;
@@ -116,7 +113,10 @@ impl MemCache {
                     .insert(room_name, (time::get_time(), terrain));
             }
             NetworkEvent::MapView { room_name, result } => {
-                self.rooms.borrow_mut().map_views.insert(room_name, (time::get_time(), result));
+                self.rooms
+                    .borrow_mut()
+                    .map_views
+                    .insert(room_name, (time::get_time(), result));
             }
             NetworkEvent::RoomView { room_name, result } => {
                 use serde_json;
@@ -136,44 +136,50 @@ impl MemCache {
                                     Occupied(entry) => {
                                         let mut obj_data = entry.into_mut();
 
-                                        obj_data.update(obj_update.clone())
-                                            .map_err(|e| {
-                                                ErrorEvent::room_view(format!("update for id {} in room {} did not \
-                                                                               parse: existing value: {:?}, failed \
-                                                                               update: {:?}, error: {}",
-                                                                              id,
-                                                                              room_name,
-                                                                              obj_data,
-                                                                              obj_update,
-                                                                              e))
-                                            })?;
+                                        obj_data.update(obj_update.clone()).map_err(|e| {
+                                            ErrorEvent::room_view(format!(
+                                                "update for id {} in room {} did not \
+                                                 parse: existing value: {:?}, failed \
+                                                 update: {:?}, error: {}",
+                                                id,
+                                                room_name,
+                                                obj_data,
+                                                obj_update,
+                                                e
+                                            ))
+                                        })?;
                                     }
                                     Vacant(entry) => {
                                         entry.insert(serde_json::from_value(obj_update.clone()).map_err(|e| {
-                                                ErrorEvent::room_view(format!("data for id {} in room {} did not \
-                                                                               parse: failed json: {:?}, error: {}",
-                                                                              id,
-                                                                              room_name,
-                                                                              obj_update,
-                                                                              e))
-                                            })?);
+                                            ErrorEvent::room_view(format!(
+                                                "data for id {} in room {} did not \
+                                                 parse: failed json: {:?}, error: {}",
+                                                id,
+                                                room_name,
+                                                obj_update,
+                                                e
+                                            ))
+                                        })?);
                                     }
                                 }
                             }
                         }
                     }
                     _ => {
-                        let new_map = result.objects
+                        let new_map = result
+                            .objects
                             .into_iter()
                             .map(|(id, obj_json)| {
                                 let data = serde_json::from_value(obj_json.clone()).map_err(|e| {
-                                        ErrorEvent::room_view(format!("data for id {} in room {} did not parse: \
-                                                                      failed json: {:?}, error: {}",
-                                                                      id,
-                                                                      room_name,
-                                                                      obj_json,
-                                                                      e))
-                                    })?;
+                                    ErrorEvent::room_view(format!(
+                                        "data for id {} in room {} did not parse: \
+                                         failed json: {:?}, error: {}",
+                                        id,
+                                        room_name,
+                                        obj_json,
+                                        e
+                                    ))
+                                })?;
                                 Ok((id, data))
                             })
                             .collect::<Result<HashMap<_, _>, ErrorEvent>>()?;
@@ -197,18 +203,17 @@ impl MemCache {
     pub fn login_state(&self) -> LoginState {
         match self.login.get() {
             Some(_) => LoginState::LoggedIn,
-            None => {
-                match self.login.should_request(None, Duration::seconds(90)) {
-                    false => LoginState::TryingToLogin,
-                    true => LoginState::NotLoggedIn,
-                }
-            }
+            None => match self.login.should_request(None, Duration::seconds(90)) {
+                false => LoginState::TryingToLogin,
+                true => LoginState::NotLoggedIn,
+            },
         }
     }
 
     pub fn align<'a, T, F>(&'a mut self, handler: &'a mut T, mut error_callback: F) -> NetworkedMemCache<'a, T, F>
-        where T: ScreepsConnection,
-              F: FnMut(ErrorEvent)
+    where
+        T: ScreepsConnection,
+        F: FnMut(ErrorEvent),
     {
         while let Some(evt) = handler.poll() {
             debug!("[cache] Got event {:?}", evt);
@@ -227,8 +232,9 @@ impl MemCache {
 
 impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F> {
     pub fn login<'b, U, P>(&mut self, username: U, password: P)
-        where U: Into<Cow<'b, str>>,
-              P: Into<Cow<'b, str>>
+    where
+        U: Into<Cow<'b, str>>,
+        P: Into<Cow<'b, str>>,
     {
         self.handler
             .send(Request::login(username, password))
@@ -253,9 +259,7 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
             let rerequest_if_before = time::get_time() - Duration::seconds(90);
             for room_name in rooms {
                 if !borrowed.contains_key(&room_name) {
-                    let resend = match self.cache
-                        .requested_rooms
-                        .get(&room_name) {
+                    let resend = match self.cache.requested_rooms.get(&room_name) {
                         Some(v) => v < &rerequest_if_before,
                         None => true,
                     };

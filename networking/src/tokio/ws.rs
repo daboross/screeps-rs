@@ -1,16 +1,16 @@
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::cell::{RefCell, Cell};
+use std::cell::{Cell, RefCell};
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc as futures_mpsc;
 use futures::sync::mpsc::UnboundedSender as FuturesSender;
 use futures::sync::mpsc::UnboundedReceiver as FuturesReceiver;
 
-use futures::{future, stream, Future, Stream, Sink};
+use futures::{future, stream, Future, Sink, Stream};
 use tokio_core::reactor::Handle;
 
-use screeps_api::{self, RoomName, NoToken, TokenStorage};
+use screeps_api::{self, NoToken, RoomName, TokenStorage};
 use screeps_api::websocket::Channel;
 
 use {hyper, websocket};
@@ -24,7 +24,7 @@ use super::utils;
 
 mod types {
     use futures::stream::{SplitSink, SplitStream};
-    use websocket::client::async::{Framed, TlsStream, TcpStream};
+    use websocket::client::async::{Framed, TcpStream, TlsStream};
     use websocket::codec::ws::MessageCodec;
     use websocket::OwnedMessage;
 
@@ -55,12 +55,13 @@ pub struct Executor<N, C, H, T> {
 }
 
 impl<N, C, H, T> Executor<N, C, H, T> {
-    pub fn new(handle: Handle,
-               send_results: StdSender<NetworkEvent>,
-               http_client: screeps_api::Api<C, H, T>,
-               login: LoginDetails,
-               notify: N)
-               -> Self {
+    pub fn new(
+        handle: Handle,
+        send_results: StdSender<NetworkEvent>,
+        http_client: screeps_api::Api<C, H, T>,
+        login: LoginDetails,
+        notify: N,
+    ) -> Self {
 
         let (raw_sender, raw_receiver) = futures_mpsc::unbounded();
 
@@ -81,9 +82,10 @@ impl<N, C, H, T> Executor<N, C, H, T> {
 }
 
 impl<N, C, H, T> utils::HasClient<C, H, T> for Executor<N, C, H, T>
-    where C: hyper::client::Connect + 'static,
-          H: screeps_api::HyperClient<C> + 'static,
-          T: TokenStorage + 'static
+where
+    C: hyper::client::Connect + 'static,
+    H: screeps_api::HyperClient<C> + 'static,
+    T: TokenStorage + 'static,
 {
     fn api(&self) -> &screeps_api::Api<C, H, T> {
         &self.http_client
@@ -100,17 +102,21 @@ enum WebsocketRequestOrRaw {
 }
 
 impl<N, C, H, T> Executor<N, C, H, T>
-    where C: hyper::client::Connect + 'static,
-          H: screeps_api::HyperClient<C> + 'static,
-          T: TokenStorage + 'static,
-          N: Notify + 'static
+where
+    C: hyper::client::Connect + 'static,
+    H: screeps_api::HyperClient<C> + 'static,
+    T: TokenStorage + 'static,
+    N: Notify + 'static,
 {
     pub fn run(mut self, ws_recv: FuturesReceiver<WebsocketRequest>) -> impl Future<Item = (), Error = ()> + 'static {
-        ws_recv.map(|m| WebsocketRequestOrRaw::Structured(m))
-            .select(self.raw_send_receiver
-                .take()
-                .expect("expected run to only ever be called once")
-                .map(|(id, m)| WebsocketRequestOrRaw::Raw(id, m)))
+        ws_recv
+            .map(|m| WebsocketRequestOrRaw::Structured(m))
+            .select(
+                self.raw_send_receiver
+                    .take()
+                    .expect("expected run to only ever be called once")
+                    .map(|(id, m)| WebsocketRequestOrRaw::Raw(id, m)),
+            )
             .fold(self, |executor, request| match request {
                 WebsocketRequestOrRaw::Structured(request) => {
                     Box::new(executor.execute(request)) as Box<Future<Item = _, Error = _>>
@@ -127,37 +133,40 @@ impl<N, C, H, T> Executor<N, C, H, T>
                 let room_set = self.subscribed_map_view.clone();
 
                 // subscribe to rooms we aren't subscribed to already.
-                Box::new(stream::iter(rooms.into_iter()
-                        .filter(move |room_name| !room_set.borrow().contains(&room_name))
-                        .map(|v| Ok(v)))
-                    .fold(self,
-                          |executor, room_name| executor.subscribe(Channel::room_map_view(room_name)))
-                    .and_then(move |executor| {
-                        // and unsubscribe from rooms we no longer need data for.
-                        let unneeded_rooms = executor.subscribed_map_view
-                            .borrow()
-                            .iter()
-                            .cloned()
-                            .filter(|room_name| !rooms.contains(room_name))
-                            .collect::<Vec<RoomName>>();
+                Box::new(
+                    stream::iter(
+                        rooms
+                            .into_iter()
+                            .filter(move |room_name| !room_set.borrow().contains(&room_name))
+                            .map(|v| Ok(v)),
+                    ).fold(self, |executor, room_name| executor.subscribe(Channel::room_map_view(room_name)))
+                        .and_then(move |executor| {
+                            // and unsubscribe from rooms we no longer need data for.
+                            let unneeded_rooms = executor
+                                .subscribed_map_view
+                                .borrow()
+                                .iter()
+                                .cloned()
+                                .filter(|room_name| !rooms.contains(room_name))
+                                .collect::<Vec<RoomName>>();
 
-                        stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v))).fold(executor, |executor, room_name| {
-                            executor.unsubscribe(Channel::room_map_view(room_name))
-                        })
-                    })) as Box<Future<Item = Self, Error = ()>>
+                            stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v)))
+                                .fold(executor, |executor, room_name| {
+                                    executor.unsubscribe(Channel::room_map_view(room_name))
+                                })
+                        }),
+                ) as Box<Future<Item = Self, Error = ()>>
             }
-            WebsocketRequest::SetFocusRoom { room } => {
-                match (self.subscribed_room_view.get(), room) {
-                    (None, None) => Box::new(future::ok(self)) as Box<Future<Item = Self, Error = ()>>,
-                    (Some(ref r1), Some(ref r2)) if r1 == r2 => Box::new(future::ok(self)),
-                    (None, Some(to_subscribe)) => Box::new(self.subscribe(Channel::room_detail(to_subscribe))),
-                    (Some(to_unsubscribe), None) => Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe))),
-                    (Some(to_unsubscribe), Some(to_subscribe)) => {
-                        Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe))
-                            .and_then(move |executor| executor.subscribe(Channel::room_detail(to_subscribe))))
-                    }
-                }
-            }
+            WebsocketRequest::SetFocusRoom { room } => match (self.subscribed_room_view.get(), room) {
+                (None, None) => Box::new(future::ok(self)) as Box<Future<Item = Self, Error = ()>>,
+                (Some(ref r1), Some(ref r2)) if r1 == r2 => Box::new(future::ok(self)),
+                (None, Some(to_subscribe)) => Box::new(self.subscribe(Channel::room_detail(to_subscribe))),
+                (Some(to_unsubscribe), None) => Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe))),
+                (Some(to_unsubscribe), Some(to_subscribe)) => Box::new(
+                    self.unsubscribe(Channel::room_detail(to_unsubscribe))
+                        .and_then(move |executor| executor.subscribe(Channel::room_detail(to_subscribe))),
+                ),
+            },
         }
     }
 
@@ -182,18 +191,20 @@ impl<N, C, H, T> Executor<N, C, H, T>
 
     fn relay_event(&self, event: NetworkEvent) {
         match self.send_results.send(event) {
-            Ok(()) => self.notify.wakeup().expect("expected glium loop to still be running when "),
+            Ok(()) => self.notify
+                .wakeup()
+                .expect("expected glium loop to still be running when "),
             Err(event) => {
-                warn!("failed to send websocket event to main thread - event: {}",
-                      event);
+                warn!("failed to send websocket event to main thread - event: {}", event);
             }
         };
     }
 
-    fn send_into(mut self,
-                 sink: WebsocketSink,
-                 message: websocket::OwnedMessage)
-                 -> impl Future<Item = Self, Error = Self> + 'static {
+    fn send_into(
+        mut self,
+        sink: WebsocketSink,
+        message: websocket::OwnedMessage,
+    ) -> impl Future<Item = Self, Error = Self> + 'static {
         sink.send(message).then(move |result| match result {
             Ok(sink) => {
                 self.client = Some(sink);
@@ -225,172 +236,196 @@ impl<N, C, H, T> Executor<N, C, H, T>
                 };
 
                 // OK, first let's get a token to authenticate with:
-                Box::new(utils::execute_or_login_and_execute(self, get_token, login_failed)
-                    .and_then(|(executor, token)| {
+                Box::new(
+                    utils::execute_or_login_and_execute(self, get_token, login_failed).and_then(|(executor, token)| {
                         // Now actually start the websocket connection
 
                         let url = screeps_api::websocket::default_url();
 
-                        let connection_future = websocket::ClientBuilder::from_url(&url)
-                            .async_connect_secure(None, &executor.handle);
+                        let connection_future =
+                            websocket::ClientBuilder::from_url(&url).async_connect_secure(None, &executor.handle);
 
                         connection_future.then(|result| match result {
-                            Ok((connection, _)) => {
-                                Box::new(executor.login_protocol(connection, token)
-                                    .and_then(|executor| executor.send(message))) as
-                                Box<Future<Item = _, Error = _>>
-                            }
+                            Ok((connection, _)) => Box::new(
+                                executor
+                                    .login_protocol(connection, token)
+                                    .and_then(|executor| executor.send(message)),
+                            ) as Box<Future<Item = _, Error = _>>,
                             Err(e) => {
                                 executor.relay_error(e);
 
                                 Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>
                             }
                         })
-                    })) as Box<Future<Item = _, Error = _>>
+                    }),
+                ) as Box<Future<Item = _, Error = _>>
             }
         }
     }
 
-    fn login_protocol(self,
-                      connection: WebsocketMergedStream,
-                      token: screeps_api::Token)
-                      -> impl Future<Item = Self, Error = Self> + 'static {
+    fn login_protocol(
+        self,
+        connection: WebsocketMergedStream,
+        token: screeps_api::Token,
+    ) -> impl Future<Item = Self, Error = Self> + 'static {
 
         let auth = websocket::OwnedMessage::Text(screeps_api::websocket::authenticate(&token));
 
-        connection.send(auth)
+        connection
+            .send(auth)
             .then(|result| match result {
                 Ok(connection) => {
-                fn finish_ping<N, C, H, T>(
+                    fn finish_ping<N, C, H, T>(
                         executor: Executor<N, C, H, T>,
                         connection: WebsocketMergedStream,
-                        data: Vec<u8>
-                ) -> impl Future<Item = (Executor<N, C, H, T>, WebsocketMergedStream),
-                                 Error = Executor<N, C, H, T>> + 'static
-                    where C: hyper::client::Connect + 'static,
-                          H: screeps_api::HyperClient<C> + 'static,
-                          T: TokenStorage + 'static,
-                          N: Notify + 'static,
-                {
-                        connection.send(websocket::OwnedMessage::Pong(data)).then(|result| match result {
-                            Ok(connection) => {
-                                Box::new(test_response(executor, connection)) as Box<Future<Item = _, Error = _>>
+                        data: Vec<u8>,
+                    ) -> impl Future<
+                        Item = (Executor<N, C, H, T>, WebsocketMergedStream),
+                        Error = Executor<N, C, H, T>,
+                    >
+                                                 + 'static
+                    where
+                        C: hyper::client::Connect + 'static,
+                        H: screeps_api::HyperClient<C> + 'static,
+                        T: TokenStorage + 'static,
+                        N: Notify + 'static,
+                    {
+                        connection
+                            .send(websocket::OwnedMessage::Pong(data))
+                            .then(|result| match result {
+                                Ok(connection) => {
+                                    Box::new(test_response(executor, connection)) as Box<Future<Item = _, Error = _>>
+                                }
+                                Err(e) => {
+                                    executor.relay_error(e);
+
+                                    Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>
+                                }
+                            })
+                    }
+
+                    fn test_response<N, C, H, T>(
+                        executor: Executor<N, C, H, T>,
+                        connection: WebsocketMergedStream,
+                    ) -> impl Future<
+                        Item = (Executor<N, C, H, T>, WebsocketMergedStream),
+                        Error = Executor<N, C, H, T>,
+                    >
+                                                 + 'static
+                    where
+                        C: hyper::client::Connect + 'static,
+                        H: screeps_api::HyperClient<C> + 'static,
+                        T: TokenStorage + 'static,
+                        N: Notify + 'static,
+                    {
+                        connection.into_future().then(|result| match result {
+                            Ok((Some(message), connection)) => {
+                                use screeps_api::websocket::parsing;
+
+                                let text = match message {
+                                    websocket::OwnedMessage::Text(text) => Ok(text),
+                                    websocket::OwnedMessage::Ping(data) => {
+                                        return Box::new(finish_ping(executor, connection, data)) as
+                                            Box<Future<Item = _, Error = _>>
+                                    }
+                                    other => Err(parsing::ParseError::Other(
+                                        format!("expected text websocket message, found {:?}", other),
+                                    )),
+                                };
+
+                                let text = match text {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        executor.relay_event(NetworkEvent::WebsocketParseError { error: e });
+
+                                        return Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>;
+                                    }
+                                };
+
+                                let parsed = match parsing::SockjsMessage::parse(&text) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        executor.relay_event(NetworkEvent::WebsocketParseError { error: e });
+
+                                        return Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>;
+                                    }
+                                };
+
+                                match parsed {
+                                    parsing::SockjsMessage::Message(m) => match m {
+                                        parsing::ScreepsMessage::AuthOk { new_token } => {
+                                            executor.http_client.tokens.return_token(new_token);
+
+                                            Box::new(future::ok((executor, connection))) as
+                                                Box<Future<Item = _, Error = _>>
+                                        }
+                                        parsing::ScreepsMessage::AuthFailed => {
+                                            executor.relay_http_error(screeps_api::ErrorKind::Unauthorized.into());
+
+                                            Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>
+                                        }
+                                        other => {
+                                            warn!(
+                                                "received unexpected websocket message while \
+                                                 waiting for 'auth ok' response: {:?}",
+                                                other
+                                            );
+
+                                            // Recursion here!
+                                            Box::new(test_response(executor, connection)) as
+                                                Box<Future<Item = _, Error = _>>
+                                        }
+                                    },
+                                    parsing::SockjsMessage::Messages(m_list) => {
+                                        for m in m_list {
+                                            match m {
+                                                parsing::ScreepsMessage::AuthOk { new_token } => {
+                                                    executor.http_client.tokens.return_token(new_token);
+
+                                                    return Box::new(future::ok((executor, connection))) as
+                                                        Box<Future<Item = _, Error = _>>;
+                                                }
+                                                parsing::ScreepsMessage::AuthFailed => {
+                                                    executor
+                                                        .relay_http_error(screeps_api::ErrorKind::Unauthorized.into());
+
+                                                    return Box::new(future::err(executor)) as
+                                                        Box<Future<Item = _, Error = _>>;
+                                                }
+                                                other => {
+                                                    warn!(
+                                                        "received unexpected websocket message while \
+                                                         waiting for 'auth ok' response: {:?}",
+                                                        other
+                                                    );
+                                                }
+                                            }
+                                        }
+
+                                        // Recursion here!
+                                        Box::new(test_response(executor, connection)) as
+                                            Box<Future<Item = _, Error = _>>
+                                    }
+                                    other => {
+                                        warn!(
+                                            "received unexpected websocket message while \
+                                             waiting for 'auth ok' response: {:?}",
+                                            other
+                                        );
+
+                                        // Recursion here!
+                                        Box::new(test_response(executor, connection)) as
+                                            Box<Future<Item = _, Error = _>>
+                                    }
+                                }
                             }
-                            Err(e) => {
+                            Ok((None, _)) => Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>,
+                            Err((e, _)) => {
                                 executor.relay_error(e);
 
                                 Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>
                             }
                         })
-                    }
-
-                fn test_response<N, C, H, T>(
-                    executor: Executor<N, C, H, T>,
-                    connection: WebsocketMergedStream
-                ) -> impl Future<Item = (Executor<N, C, H, T>, WebsocketMergedStream),
-                                 Error = Executor<N, C, H, T>> + 'static
-                    where C: hyper::client::Connect + 'static,
-                          H: screeps_api::HyperClient<C> + 'static,
-                          T: TokenStorage + 'static,
-                          N: Notify + 'static
-                {
-                        connection.into_future().then(|result| match result {
-                        Ok((Some(message), connection)) => {
-                            use screeps_api::websocket::parsing;
-
-                            let text = match message {
-                                websocket::OwnedMessage::Text(text) => Ok(text),
-                                websocket::OwnedMessage::Ping(data) => {
-                                    return Box::new(finish_ping(executor, connection, data))
-                                        as Box<Future<Item = _, Error = _>>
-                                },
-                                other => {
-                                    Err(parsing::ParseError::Other(
-                                        format!("expected text websocket message, found {:?}", other)))
-                                },
-                            };
-
-                            let text = match text {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    executor.relay_event(NetworkEvent::WebsocketParseError { error: e});
-
-                                    return Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>;
-                                }
-                            };
-
-                            let parsed = match parsing::SockjsMessage::parse(&text) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    executor.relay_event(NetworkEvent::WebsocketParseError { error: e });
-
-                                    return Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>;
-                                }
-                            };
-
-                            match parsed {
-                                parsing::SockjsMessage::Message(m) => match m {
-                                    parsing::ScreepsMessage::AuthOk { new_token } => {
-                                        executor.http_client.tokens.return_token(new_token);
-
-                                        Box::new(future::ok((executor, connection))) as Box<Future<Item = _, Error = _>>
-                                    }
-                                    parsing::ScreepsMessage::AuthFailed => {
-                                        executor.relay_http_error(screeps_api::ErrorKind::Unauthorized.into());
-
-                                        Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>
-                                    }
-                                    other => {
-                                        warn!("received unexpected websocket message while \
-                                                waiting for 'auth ok' response: {:?}", other);
-
-                                        // Recursion here!
-                                        Box::new(test_response(executor, connection))
-                                            as Box<Future<Item = _, Error = _>>
-                                    }
-                                },
-                                parsing::SockjsMessage::Messages(m_list) => {
-                                    for m in m_list {
-                                        match m {
-                                            parsing::ScreepsMessage::AuthOk { new_token } => {
-                                                executor.http_client.tokens.return_token(new_token);
-
-                                                return Box::new(future::ok((executor, connection)))
-                                                    as Box<Future<Item = _, Error = _>>
-                                            }
-                                            parsing::ScreepsMessage::AuthFailed => {
-                                                executor.relay_http_error(screeps_api::ErrorKind::Unauthorized.into());
-
-                                                return Box::new(future::err(executor))
-                                                    as Box<Future<Item = _, Error = _>>
-                                            }
-                                            other => {
-                                                warn!("received unexpected websocket message while \
-                                                        waiting for 'auth ok' response: {:?}", other);
-                                            }
-                                        }
-                                    }
-
-                                    // Recursion here!
-                                    Box::new(test_response(executor, connection)) as Box<Future<Item = _, Error = _>>
-                                },
-                                other => {
-                                    warn!("received unexpected websocket message while \
-                                            waiting for 'auth ok' response: {:?}", other);
-
-                                    // Recursion here!
-                                    Box::new(test_response(executor, connection))
-                                        as Box<Future<Item = _, Error = _>>
-                                }
-                            }
-                        }
-                        Ok((None, _)) => Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>,
-                        Err((e, _)) => {
-                            executor.relay_error(e);
-
-                            Box::new(future::err(executor)) as Box<Future<Item = _, Error = _>>
-                        }
-                    })
                     }
 
                     Box::new(test_response(self, connection)) as Box<Future<Item = _, Error = _>>
@@ -406,13 +441,14 @@ impl<N, C, H, T> Executor<N, C, H, T>
 
                 let (sink, stream) = connection.split();
 
-                ReaderData::new(executor.handle.clone(),
-                                executor.send_results.clone(),
-                                executor.http_client.tokens.clone(),
-                                executor.notify.clone(),
-                                executor.raw_send_sender.clone(),
-                                executor.connection_id)
-                    .start(stream);
+                ReaderData::new(
+                    executor.handle.clone(),
+                    executor.send_results.clone(),
+                    executor.http_client.tokens.clone(),
+                    executor.notify.clone(),
+                    executor.raw_send_sender.clone(),
+                    executor.connection_id,
+                ).start(stream);
 
                 executor.client = Some(sink);
 
@@ -432,8 +468,7 @@ impl<N, C, H, T> Executor<N, C, H, T>
                         executor.subscribed_room_view.set(Some(room_name));
                     }
                     other => {
-                        warn!("websocket executor not prepared to handle registering channel {}",
-                              other);
+                        warn!("websocket executor not prepared to handle registering channel {}", other);
                     }
                 };
                 Ok(executor)
@@ -452,14 +487,11 @@ impl<N, C, H, T> Executor<N, C, H, T>
                     Channel::RoomMapView { room_name } => {
                         executor.subscribed_map_view.borrow_mut().remove(&room_name);
                     }
-                    Channel::RoomDetail { room_name } => {
-                        if Some(room_name) == executor.subscribed_room_view.get() {
-                            executor.subscribed_room_view.set(None);
-                        }
-                    }
+                    Channel::RoomDetail { room_name } => if Some(room_name) == executor.subscribed_room_view.get() {
+                        executor.subscribed_room_view.set(None);
+                    },
                     other => {
-                        warn!("websocket executor not prepared to handle registering channel {}",
-                              other);
+                        warn!("websocket executor not prepared to handle registering channel {}", other);
                     }
                 };
                 Ok(executor)
@@ -480,7 +512,7 @@ mod read {
     use futures::sync::mpsc::UnboundedSender;
 
     use screeps_api::{self, TokenStorage};
-    use screeps_api::websocket::{ChannelUpdate, SockjsMessage, ScreepsMessage};
+    use screeps_api::websocket::{ChannelUpdate, ScreepsMessage, SockjsMessage};
 
     use event::NetworkEvent;
     use Notify;
@@ -500,13 +532,14 @@ mod read {
     struct ExitNow;
 
     impl<N: Notify, T: TokenStorage> ReaderData<N, T> {
-        pub fn new(handle: Handle,
-                   send_results: StdSender<NetworkEvent>,
-                   tokens: T,
-                   notify: N,
-                   send: UnboundedSender<(u16, OwnedMessage)>,
-                   connection_id: u16)
-                   -> Self {
+        pub fn new(
+            handle: Handle,
+            send_results: StdSender<NetworkEvent>,
+            tokens: T,
+            notify: N,
+            send: UnboundedSender<(u16, OwnedMessage)>,
+            connection_id: u16,
+        ) -> Self {
             ReaderData {
                 handle: handle,
                 send_results: send_results,
@@ -537,12 +570,15 @@ mod read {
         ///
         /// This uses the stored Handle inside of ReaderData to put this task into the tokio core.
         pub fn start(self, stream: WebsocketStream) {
-            self.handle.clone().spawn(stream.then(|result| future::ok::<_, ExitNow>(result))
-                .fold(self, |executor, message| {
-                    executor.event(message)?;
-                    Ok(executor)
-                })
-                .then(|_| future::ok::<(), ()>(())));
+            self.handle.clone().spawn(
+                stream
+                    .then(|result| future::ok::<_, ExitNow>(result))
+                    .fold(self, |executor, message| {
+                        executor.event(message)?;
+                        Ok(executor)
+                    })
+                    .then(|_| future::ok::<(), ()>(())),
+            );
         }
 
         fn event(&self, message: Result<OwnedMessage, WebSocketError>) -> Result<(), ExitNow> {
@@ -558,16 +594,14 @@ mod read {
 
         fn event_websocket_message(&self, message: OwnedMessage) -> Result<(), ExitNow> {
             match message {
-                OwnedMessage::Text(text) => {
-                    match SockjsMessage::parse(&text) {
-                        Ok(message) => {
-                            self.event_sockjs_message(message)?;
-                        }
-                        Err(e) => {
-                            self.send(NetworkEvent::WebsocketParseError { error: e })?;
-                        }
+                OwnedMessage::Text(text) => match SockjsMessage::parse(&text) {
+                    Ok(message) => {
+                        self.event_sockjs_message(message)?;
                     }
-                }
+                    Err(e) => {
+                        self.send(NetworkEvent::WebsocketParseError { error: e })?;
+                    }
+                },
                 OwnedMessage::Binary(data) => {
                     warn!("ignoring binary data received on websocket: {:?}", data);
                 }
@@ -594,11 +628,9 @@ mod read {
                 SockjsMessage::Message(message) => {
                     self.event_screeps_message(message)?;
                 }
-                SockjsMessage::Messages(messages) => {
-                    for message in messages {
-                        self.event_screeps_message(message)?;
-                    }
-                }
+                SockjsMessage::Messages(messages) => for message in messages {
+                    self.event_screeps_message(message)?;
+                },
             }
             Ok(())
         }
@@ -610,9 +642,13 @@ mod read {
                     debug!("received protocol message: {:?}", msg);
                 }
                 ScreepsMessage::AuthFailed => {
-                    warn!("received 'auth failed' message from inside main handler, \
-                           which only operates after auth response has been received.");
-                    self.send(NetworkEvent::WebsocketHttpError { error: screeps_api::ErrorKind::Unauthorized.into() })?;
+                    warn!(
+                        "received 'auth failed' message from inside main handler, \
+                         which only operates after auth response has been received."
+                    );
+                    self.send(NetworkEvent::WebsocketHttpError {
+                        error: screeps_api::ErrorKind::Unauthorized.into(),
+                    })?;
                 }
                 ScreepsMessage::AuthOk { new_token } => {
                     self.tokens.return_token(new_token);
@@ -621,8 +657,7 @@ mod read {
                     self.event_channel_update(update)?;
                 }
                 ScreepsMessage::Other(unparsed) => {
-                    warn!("received screeps message which did not match any known format!\n\t{}",
-                          unparsed);
+                    warn!("received screeps message which did not match any known format!\n\t{}", unparsed);
                 }
             }
             Ok(())

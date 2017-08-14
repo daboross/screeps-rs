@@ -6,13 +6,15 @@ pub use app::App;
 use app::AppCell;
 use events::Event;
 
-use {glutin, glium, rusttype, fern, log, chrono};
+use {chrono, fern, glium, glutin, log, rusttype};
 
 fn akashi_font() -> rusttype::Font<'static> {
     let font_data = include_bytes!("../ttf/Akashi.ttf");
     let collection = rusttype::FontCollection::from_bytes(font_data as &[u8]);
 
-    collection.into_font().expect("expected loading embedded Akashi.ttf font to succeed")
+    collection
+        .into_font()
+        .expect("expected loading embedded Akashi.ttf font to succeed")
 }
 
 pub fn init_window() -> (glutin::EventsLoop, App) {
@@ -24,8 +26,8 @@ pub fn init_window() -> (glutin::EventsLoop, App) {
     let context = glutin::ContextBuilder::new()
         .with_vsync(true)
         .with_multisampling(4);
-    let display = glium::Display::new(window, context, &events_loop)
-        .expect("expected initial window creation to succeed");
+    let display =
+        glium::Display::new(window, context, &events_loop).expect("expected initial window creation to succeed");
 
     // Create UI and other components.
     let mut app = App::new(display, &events_loop);
@@ -37,8 +39,9 @@ pub fn init_window() -> (glutin::EventsLoop, App) {
 }
 
 pub fn init_logger<T, I>(verbose: bool, debug_modules: I)
-    where T: AsRef<str>,
-          I: IntoIterator<Item = T>
+where
+    T: AsRef<str>,
+    I: IntoIterator<Item = T>,
 {
     let mut dispatch = fern::Dispatch::new()
         .level(if verbose {
@@ -53,14 +56,11 @@ pub fn init_logger<T, I>(verbose: bool, debug_modules: I)
         dispatch = dispatch.level_for(module.as_ref().to_owned(), log::LogLevelFilter::Trace);
     }
 
-    dispatch.format(|out, msg, record| {
+    dispatch
+        .format(|out, msg, record| {
             let now = chrono::Local::now();
 
-            out.finish(format_args!("[{}][{}] {}: {}",
-                                    now.format("%H:%M:%S"),
-                                    record.level(),
-                                    record.target(),
-                                    msg));
+            out.finish(format_args!("[{}][{}] {}: {}", now.format("%H:%M:%S"), record.level(), record.target(), msg));
         })
         .chain(io::stdout())
         .apply()

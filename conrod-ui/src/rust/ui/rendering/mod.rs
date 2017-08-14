@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 use std::cell::Ref;
 
 use conrod::widget;
-use conrod::render::{PrimitiveWalker, Primitive};
+use conrod::render::{Primitive, PrimitiveWalker};
 
-use network::{SelectedRooms, MapCacheData, MapCache};
+use network::{MapCache, MapCacheData, SelectedRooms};
 
 pub mod constants;
 mod map_view;
@@ -79,13 +79,15 @@ impl<'a> BorrowedRender<'a> {
         let parent_rect = replacing_primitive.rect;
         let parent_scizzor = replacing_primitive.scizzor;
 
-        debug!("into_primitives: {{parent_rect: {:?}, parent_scizzor: {:?}}}",
-               parent_rect,
-               parent_scizzor);
+        debug!("into_primitives: {{parent_rect: {:?}, parent_scizzor: {:?}}}", parent_rect, parent_scizzor);
 
-        let BorrowedRender { replace, draw_type, .. } = self;
+        let BorrowedRender {
+            replace, draw_type, ..
+        } = self;
 
-        let scizzor = parent_scizzor.overlap(parent_rect).unwrap_or(parent_scizzor);
+        let scizzor = parent_scizzor
+            .overlap(parent_rect)
+            .unwrap_or(parent_scizzor);
 
         match draw_type {
             BorrowedRenderType::MapView(parameters) => {
@@ -107,20 +109,18 @@ impl<'a, T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<'a, T> {
         }
 
         match self.walker.next_primitive() {
-            Some(p) => {
-                if Some(&p.id) == self.custom.as_ref().map(|c| &c.replace) {
-                    debug!("found correct id");
-                    let c = self.custom.clone().unwrap();
+            Some(p) => if Some(&p.id) == self.custom.as_ref().map(|c| &c.replace) {
+                debug!("found correct id");
+                let c = self.custom.clone().unwrap();
 
-                    let mut iter = c.into_primitives(&p);
-                    let first = iter.next();
-                    self.currently_replacing = Some(iter);
+                let mut iter = c.into_primitives(&p);
+                let first = iter.next();
+                self.currently_replacing = Some(iter);
 
-                    Some(first.unwrap_or(p))
-                } else {
-                    Some(p)
-                }
-            }
+                Some(first.unwrap_or(p))
+            } else {
+                Some(p)
+            },
             None => None,
         }
     }
