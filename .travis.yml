@@ -40,38 +40,11 @@ before_script:
   else
       RUN_DEPLOY=false
   fi
-- |
-  # set TEST_FMT
-  if [[ ($TEST_ONLY = true || -z $DEPLOY_ONLY) && -z $TRAVIS_TAG ]]; then
-      TEST_FMT=true
-      echo "formatting test enabled"
-  else
-      TEST_FMT=false
-  fi
 - export PATH="$PATH:$HOME/.cargo/bin"
 - |
   # install target toolchain
   if $RUN_TEST || $RUN_DEPLOY; then
       rustup target add "$TARGET" || true
-  fi
-- |
-  # cargo install rustfmt
-  if $TEST_FMT; then
-      echo "formatting enabled"
-      if which rustfmt > /dev/null && [[ $(rustup run nightly rustfmt --version) != "0.2.1-nightly (16920fb"* ]]; then
-          echo "uninstalling old rustfmt"
-          cargo uninstall rustfmt;
-      fi
-      if ! which rustfmt > /dev/null; then
-          echo "installing rustfmt"
-          cargo install rustfmt-nightly --git https://github.com/rust-lang-nursery/rustfmt.git --rev 16920fb -j 1
-          cargo install rustfmt-nightly --vers 0.2.1 -j 1
-      fi
-  fi
-- |
-  # rustfmt --version
-  if $TEST_FMT; then
-      rustup run nightly rustfmt --version
   fi
 - c++ --version
 - |
@@ -93,14 +66,6 @@ script:
   # cargo build
   if $RUN_TEST; then
       travis_wait cargo build --target "$TARGET" --verbose -j 1
-  fi
-- |
-  # cargo-fmt --write-mode=diff
-  if $TEST_FMT; then
-      cd conrod-ui &&
-      cargo fmt --verbose -- --write-mode=diff &&
-      cd ../networking &&
-      cargo fmt --verbose -- --write-mode=diff
   fi
 - |
   # cargo test
