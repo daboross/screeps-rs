@@ -9,23 +9,34 @@ Screeps is a true programming MMO where users upload JavaScript code to power th
 
 ![terrain rendering screenshot][terrain-image]
 
-This client is built on two main projects:
-- [`rust-screeps-api`] implements networking and parsing of network results
+This client is built on three main projects:
+- [`rust-screeps-api`] implements HTTP calls, endpoints and json result parsing
+- [`scrs-network`] implements result caching, keeping track of http and websocket connections, and providing an 'event' api
 - [`screeps-rs`] implements rendering and a UI
 
 [`rust-screeps-api`] can:
 
 - Connect to screeps.com with HTTP calls and websocket connections
 - Authenticate
-- Retrieve room terrain, map room overviews, basic user information and some room details.
+- Retrieve room terrain, map room overviews, basic user information and room details.
 
 [`screeps-rs`] can:
 
 - Connect to screeps.com
 - Login through a UI
-- Render basic room terrain and user information.
+- Render basic room terrain, map view, and information of the logged in user.
 
 Eventually, this will be able to connect to both the [official server][screeps] and any [private server][screeps-os] instances run by users.
+
+Neighbor projects:
+
+- APIs:
+  - [`python-screeps`] implements a compact screeps API interface in python
+  - [`node-screeps-api`] implements an interface for the screeps API in node.js
+- Clients:
+  - [`ricochet1k/screeps-client`] implements a full screeps room viewer in browser JavaScript
+  - [`ags131/screeps-client`] implements a slightly-less-full screeps room viewer in browser JavaScript
+  - [`screeps-silica`] is directly connected to screeps-rs, using Scala to accomplish the same goals
 
 [`screeps-rs`] uses the `Akashi` font. It is included with permission from [Ten by Twenty][ten-by-twenty].
 
@@ -37,6 +48,12 @@ Eventually, this will be able to connect to both the [official server][screeps] 
 [conrod]: https://github.com/PistonDevelopers/conrod/
 [`rust-screeps-api`]: https://github.com/daboross/rust-screeps-api
 [`screeps-rs`]: https://github.com/daboross/screeps-rs
+[`scrs-networking`]: https://github.com/daboross/screeps-rs/tree/master/networking
+[`python-screeps`]: https://github.com/screepers/python-screeps/
+[`node-screeps-api`]: https://github.com/screepers/node-screeps-api
+[`screeps-silica`]: https://github.com/daboross/screeps-silica/
+[`ricochet1k/screeps-client`]: https://github.com/ricochet1k/screeps-client
+[`ags131/screeps-client`]: https://github.com/ags131/screeps-client
 [screeps]: https://screeps.com
 [screeps-os]: https://github.com/screeps/screeps/
 [ten-by-twenty]: http://tenbytwenty.com/
