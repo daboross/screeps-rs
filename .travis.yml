@@ -65,7 +65,7 @@ script:
 - |
   # cargo build
   if $RUN_TEST; then
-      travis_wait cargo build --target "$TARGET" --verbose -j 1
+      travis_wait 40 cargo build --target "$TARGET" --verbose -j 1
   fi
 - |
   # cargo test

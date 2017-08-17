@@ -19,7 +19,7 @@ install:
 
 test_script:
 - if [%APPVEYOR_REPO_TAG%] == [false] (cargo build --verbose --target %TARGET%)
-- if [%APPVEYOR_REPO_TAG%] == [false] (cargo test --verbose -p scrs-networking --target %TARGET%)
+- if [%APPVEYOR_REPO_TAG%] == [false] (cargo test --verbose -p scrs-network --target %TARGET%)
 - if [%APPVEYOR_REPO_TAG%] == [false] (cargo test --verbose -p screeps-rs --target %TARGET%)
 
 cache:
