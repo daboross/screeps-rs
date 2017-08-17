@@ -1,10 +1,7 @@
 
 use std::io;
 
-use glium::Surface;
 pub use app::App;
-use app::AppCell;
-use events::Event;
 
 use {chrono, fern, glium, glutin, log, rusttype};
 

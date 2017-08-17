@@ -1,4 +1,3 @@
-
 extern crate clap;
 extern crate screeps_rs;
 

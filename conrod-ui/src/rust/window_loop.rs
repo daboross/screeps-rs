@@ -1,5 +1,3 @@
-use std::io;
-
 use glium::Surface;
 use app::{App, AppCell};
 use events::Event;

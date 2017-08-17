@@ -345,9 +345,7 @@ mod room_view_widget {
             use conrod::event::Widget as Event;
             use conrod::input::MouseButton;
 
-            let widget::UpdateArgs {
-                id, ui, mut state, ..
-            } = args;
+            let widget::UpdateArgs { id, ui, state, .. } = args;
 
             let input = ui.widget_input(id);
 

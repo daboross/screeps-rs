@@ -134,7 +134,7 @@ impl MemCache {
                             } else {
                                 match map.entry(id.clone()) {
                                     Occupied(entry) => {
-                                        let mut obj_data = entry.into_mut();
+                                        let obj_data = entry.into_mut();
 
                                         obj_data.update(obj_update.clone()).map_err(|e| {
                                             ErrorEvent::room_view(format!(
