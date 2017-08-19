@@ -137,7 +137,6 @@ fn left_panel_available(
                         })
                         .unwrap_or(true)
             {
-
                 state.left = MenuState::Closed;
             }
         }

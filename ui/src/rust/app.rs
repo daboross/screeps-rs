@@ -71,7 +71,6 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
         additional_rendering: &'c mut Option<ui::AdditionalRender>,
         notify: &'a GlutinNotify,
     ) -> Self {
-
         AppCell {
             ui: cell,
             display: display,

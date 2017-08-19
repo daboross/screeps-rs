@@ -3,7 +3,7 @@ use conrod::widget::*;
 
 use time;
 
-use network::{self, Request, ScreepsConnection, ConnectionSettings};
+use network::{self, ConnectionSettings, Request, ScreepsConnection};
 
 use app::AppCell;
 use super::{frame, GraphicsState, HEADER_HEIGHT};

@@ -289,7 +289,6 @@ where
         connection: WebsocketMergedStream,
         token: screeps_api::Token,
     ) -> impl Future<Item = Self, Error = Self> + 'static {
-
         let auth = websocket::OwnedMessage::Text(screeps_api::websocket::authenticate(&token));
 
         connection

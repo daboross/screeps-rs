@@ -13,7 +13,7 @@ where
     H: screeps_api::HyperClient<C>,
     T: TokenStorage,
 {
-    type SettingsDeref: Deref<Target=ConnectionSettings> + 'a;
+    type SettingsDeref: Deref<Target = ConnectionSettings> + 'a;
 
     fn settings(&'a self) -> Self::SettingsDeref;
     fn api(&'a self) -> &'a screeps_api::Api<C, H, T>;
@@ -52,7 +52,9 @@ where
         Err((executor, NoToken)) => {
             let login_future = {
                 let settings = executor.settings();
-                executor.api().login(&*settings.username, &*settings.password)
+                executor
+                    .api()
+                    .login(&*settings.username, &*settings.password)
             };
             Box::new(login_future.then(move |login_result| {
                 match login_result {

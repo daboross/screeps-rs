@@ -218,7 +218,6 @@ fn find_next_detail_view_room<'a>(
     horizontal_room_count: i16,
     vertical_room_count: i16,
 ) -> Option<(i16, i16, Ref<'a, HashMap<String, KnownRoomObject>>)> {
-
     let selected_room = data.detail_view.as_ref().map(|x| x.0);
 
 
@@ -369,7 +368,6 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                 ref mut current_relative_room_y,
                 ref mut inner_state,
             } => {
-
                 let draw_square_at = {
                     let room_screen_size = self.room_screen_size;
                     let start_room_screen_pos = self.start_room_screen_pos;
@@ -603,7 +601,6 @@ pub fn render<'a>(
     scizzor: Rect,
     parameters: (SelectedRooms, Ref<'a, MapCacheData>, MapViewOffset),
 ) -> impl Iterator<Item = Primitive<'static>> + 'a {
-
     let (selected, data, offset) = parameters;
 
     let start_room_name = selected.start;

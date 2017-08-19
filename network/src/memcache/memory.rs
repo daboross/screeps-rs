@@ -10,7 +10,7 @@ use time::{self, Duration};
 use super::{ErrorEvent, LoginState};
 use event::{MapCacheData, NetworkEvent};
 use request::{Request, SelectedRooms};
-use {ScreepsConnection, ConnectionSettings};
+use {ConnectionSettings, ScreepsConnection};
 
 #[derive(Copy, Clone, Debug)]
 struct TimeoutValue<T> {
@@ -229,13 +229,14 @@ impl MemCache {
 }
 
 impl<'a, C: ScreepsConnection> NetworkedMemCache<'a, C> {
-    pub fn login(&mut self)
-    {
+    pub fn login(&mut self) {
         self.handler.send(Request::login());
     }
 
     pub fn update_settings(&mut self, settings: ConnectionSettings) {
-        self.handler.send(Request::ChangeSettings { settings: Arc::new(settings) })
+        self.handler.send(Request::ChangeSettings {
+            settings: Arc::new(settings),
+        })
     }
 
     pub fn my_info(&mut self) -> Option<&screeps_api::MyInfo> {

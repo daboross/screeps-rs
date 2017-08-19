@@ -163,7 +163,6 @@ impl Cache {
 
                             if let Err(e) = sent_database.delete(&key) {
                                 warn!("deleting cache entry (terrain:{}) failed: {}", room, e);
-
                             }
 
                             None
