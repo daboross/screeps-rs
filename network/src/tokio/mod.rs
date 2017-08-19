@@ -191,11 +191,6 @@ impl<N> fmt::Debug for Handler<N> {
     }
 }
 
-enum ExitResult {
-    ChangeSettings { new_settings: ConnectionSettings },
-    Exit,
-}
-
 
 struct ThreadedHandler<N> {
     http_recv: FuturesReceiver<HttpRequest>,
