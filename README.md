@@ -7,7 +7,7 @@ WIP native screeps client using [Rust] and [conrod].
 
 Screeps is a true programming MMO where users upload JavaScript code to power their online empires.
 
-![terrain rendering screenshot][terrain-image]
+![map rendering screenshot][map-image]
 
 This client is built on three main projects:
 - [`rust-screeps-api`] implements HTTP calls, endpoints and json result parsing
@@ -47,8 +47,8 @@ Neighbor projects:
 [rust]: https://www.rust-lang.org/
 [conrod]: https://github.com/PistonDevelopers/conrod/
 [`rust-screeps-api`]: https://github.com/daboross/rust-screeps-api
-[`screeps-rs-network`]: https://github.com/daboross/screeps-rs/tree/master/network
-[`screeps-rs-ui`]: https://github.com/daboross/screeps-rs/tree/master/ui
+[`screeps-rs-network`]: network/
+[`screeps-rs-ui`]: ui/
 [`python-screeps`]: https://github.com/screepers/python-screeps/
 [`node-screeps-api`]: https://github.com/screepers/node-screeps-api
 [`screeps-silica`]: https://github.com/daboross/screeps-silica/
@@ -57,4 +57,4 @@ Neighbor projects:
 [screeps]: https://screeps.com
 [screeps-os]: https://github.com/screeps/screeps/
 [ten-by-twenty]: http://tenbytwenty.com/
-[terrain-image]: docs/terrain-render.png
+[map-image]: docs/map-render.png
