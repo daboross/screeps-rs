@@ -19,7 +19,7 @@ pub fn init_window() -> (glutin::EventsLoop, App) {
     let events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
-        .with_title("SCRS Client");
+        .with_title("screeps-rs-client");
     let context = glutin::ContextBuilder::new()
         .with_vsync(true)
         .with_multisampling(4);

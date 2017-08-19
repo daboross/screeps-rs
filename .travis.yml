@@ -70,8 +70,8 @@ script:
 - |
   # cargo test
   if $RUN_TEST; then
-      cargo test --target "$TARGET" -p scrs-network --verbose -j 1
-      cargo test --target "$TARGET" -p screeps-rs --verbose -j 1
+      cargo test --target "$TARGET" -p screeps-rs-network --verbose -j 1
+      cargo test --target "$TARGET" -p screeps-rs-ui --verbose -j 1
   fi
 - |
   # cargo build --release
@@ -80,7 +80,7 @@ script:
   fi
 before_deploy:
 - cargo build --target "$TARGET" --verbose --release -j 1
-- tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "scrs"
+- tar -C "target/$TARGET/release/" -czf "${TRAVIS_TAG}-${TARGET_DESC}.tar.gz" "screeps-rs-client"
 deploy:
     provider: releases
     api_key:

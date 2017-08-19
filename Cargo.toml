@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "networking",
-    "conrod-ui",
+    "network",
+    "ui",
 ]
 
 [replace]

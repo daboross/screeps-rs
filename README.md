@@ -11,8 +11,8 @@ Screeps is a true programming MMO where users upload JavaScript code to power th
 
 This client is built on three main projects:
 - [`rust-screeps-api`] implements HTTP calls, endpoints and json result parsing
-- [`scrs-network`] implements result caching, keeping track of http and websocket connections, and providing an 'event' api
-- [`screeps-rs`] implements rendering and a UI
+- [`screeps-rs-network`] implements result caching, keeping track of http and websocket connections, and providing an 'event' api
+- [`screeps-rs-ui`] implements rendering and a UI
 
 [`rust-screeps-api`] can:
 
@@ -47,8 +47,8 @@ Neighbor projects:
 [rust]: https://www.rust-lang.org/
 [conrod]: https://github.com/PistonDevelopers/conrod/
 [`rust-screeps-api`]: https://github.com/daboross/rust-screeps-api
-[`screeps-rs`]: https://github.com/daboross/screeps-rs
-[`scrs-networking`]: https://github.com/daboross/screeps-rs/tree/master/networking
+[`screeps-rs-network`]: https://github.com/daboross/screeps-rs/tree/master/network
+[`screeps-rs-ui`]: https://github.com/daboross/screeps-rs/tree/master/ui
 [`python-screeps`]: https://github.com/screepers/python-screeps/
 [`node-screeps-api`]: https://github.com/screepers/node-screeps-api
 [`screeps-silica`]: https://github.com/daboross/screeps-silica/

@@ -1,5 +1,5 @@
 extern crate clap;
-extern crate screeps_rs;
+extern crate screeps_rs_ui;
 
 use clap::{App, Arg};
 
@@ -22,20 +22,24 @@ fn main() {
                 .value_name("MODULE_PATH")
                 .help("Enable verbose logging for a specific module")
                 .long_help(
-                    "Enables verbose debug logging for an individual rust module or path.\nFor example, `--debug \
-                     screeps_rs::app::ui` will enable verbose logging for UI related code.\n\nCommon modules you \
-                     can use:\n- screeps_rs::app       app glue and UI\n- screeps_rs::app::ui   app UI\n- \
-                     screeps_rs::network   app network calling and result caching\n- screeps_api           HTTP \
-                     networking, websocket networking and result parsing\n- screeps_api::sockets  websocket \
-                     networking only\n- hyper                 raw HTTP client\n- ws                    raw \
-                     websocket client",
+                    "Enables verbose debug logging for an individual rust module or path.\n\
+                     For example, `--debug screeps_rs_ui::ui` will enable verbose logging for UI related code.\n\
+                     \n\
+                     Common modules you can use:\n\
+                     - screeps_rs_network    app network calling and result caching\n\
+                     - screeps_rs_ui         app glue and UI\n\
+                     - screeps_rs_ui::ui     app UI\n\
+                     - screeps_api           network result parsing\n\
+                     - screeps_api::sockets  websocket network result parsing\n\
+                     - hyper                 HTTP client\n\
+                     - ws                    websocket client",
                 )
                 .takes_value(true)
                 .multiple(true),
         )
         .get_matches();
 
-    screeps_rs::main(
+    screeps_rs_ui::main(
         matches.is_present("verbose"),
         matches
             .values_of("debug-modules")

@@ -11,7 +11,6 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
 
     debug!("Starting event loop.");
 
-
     events.run_loop(|control, event| {
         if let ui::GraphicsState::Exit = state {
             info!("exiting.");
@@ -43,7 +42,6 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                                 ..
                             } |
                             glutin::WindowEvent::Closed => control.exit(),
-                            // glutin::Event::Focused(true) |
                             glutin::WindowEvent::Refresh | glutin::WindowEvent::Resized(..) => {
                                 app.ui.needs_redraw();
                                 control.needs_update();

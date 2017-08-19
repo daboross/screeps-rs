@@ -1,8 +1,8 @@
 [package]
-name = "scrs-network"
+name = "screeps-rs-network"
 version = "0.1.0"
 authors = ["David Ross <daboross@daboross.net>"]
-description = "WIP native Sreeps client backend, containing networking and caching, but no graphics."
+description = "Networking and caching for a work in progress native Screeps client."
 
 repository = "https://github.com/daboross/screeps-rs"
 

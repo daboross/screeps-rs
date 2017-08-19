@@ -12,7 +12,7 @@ extern crate rusttype;
 // Network
 
 extern crate screeps_api;
-extern crate scrs_network;
+extern crate screeps_rs_network;
 // Caching
 
 extern crate time;
