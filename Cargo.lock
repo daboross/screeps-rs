@@ -1085,7 +1085,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "screeps-api"
 version = "0.2.1-dev"
-source = "git+https://github.com/daboross/rust-screeps-api.git#1e2a8114c858e24cfe440c40223429c659264761"
+source = "git+https://github.com/daboross/rust-screeps-api.git#de15fe6f45061680600b7b41b0ccbcbf4421ec25"
 dependencies = [
  "arrayvec 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)",
