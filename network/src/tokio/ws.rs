@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::cell::{Cell, RefCell};
+use std::sync::Arc;
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc as futures_mpsc;
@@ -15,9 +16,8 @@ use screeps_api::websocket::Channel;
 
 use {hyper, websocket};
 
-use request::LoginDetails;
 use event::NetworkEvent;
-use Notify;
+use {ConnectionSettings, Notify};
 
 use super::types::WebsocketRequest;
 use super::utils;
@@ -41,7 +41,7 @@ pub struct Executor<N, C, H, T> {
     send_results: StdSender<NetworkEvent>,
     notify: N,
     http_client: screeps_api::Api<C, H, T>,
-    login: LoginDetails,
+    settings: Arc<ConnectionSettings>,
     /// Receive messages from the Reader thread to send.
     raw_send_receiver: Option<FuturesReceiver<(u16, websocket::OwnedMessage)>>,
     raw_send_sender: FuturesSender<(u16, websocket::OwnedMessage)>,
@@ -59,10 +59,9 @@ impl<N, C, H, T> Executor<N, C, H, T> {
         handle: Handle,
         send_results: StdSender<NetworkEvent>,
         http_client: screeps_api::Api<C, H, T>,
-        login: LoginDetails,
+        settings: Arc<ConnectionSettings>,
         notify: N,
     ) -> Self {
-
         let (raw_sender, raw_receiver) = futures_mpsc::unbounded();
 
         Executor {
@@ -70,7 +69,7 @@ impl<N, C, H, T> Executor<N, C, H, T> {
             send_results: send_results,
             notify: notify,
             http_client: http_client,
-            login: login,
+            settings: settings,
             raw_send_receiver: Some(raw_receiver),
             raw_send_sender: raw_sender,
             connection_id: 0,
@@ -81,18 +80,20 @@ impl<N, C, H, T> Executor<N, C, H, T> {
     }
 }
 
-impl<N, C, H, T> utils::HasClient<C, H, T> for Executor<N, C, H, T>
+impl<'a, N, C, H, T> utils::HasClient<'a, C, H, T> for Executor<N, C, H, T>
 where
     C: hyper::client::Connect + 'static,
     H: screeps_api::HyperClient<C> + 'static,
     T: TokenStorage + 'static,
 {
-    fn api(&self) -> &screeps_api::Api<C, H, T> {
+    type SettingsDeref = &'a ConnectionSettings;
+
+    fn api(&'a self) -> &'a screeps_api::Api<C, H, T> {
         &self.http_client
     }
 
-    fn login(&self) -> &LoginDetails {
-        &self.login
+    fn settings(&'a self) -> Self::SettingsDeref {
+        &self.settings
     }
 }
 
@@ -139,7 +140,10 @@ where
                             .into_iter()
                             .filter(move |room_name| !room_set.borrow().contains(&room_name))
                             .map(|v| Ok(v)),
-                    ).fold(self, |executor, room_name| executor.subscribe(Channel::room_map_view(room_name)))
+                    ).fold(self, |executor, room_name| {
+                        let shard = executor.settings.shard.clone();
+                        executor.subscribe(Channel::room_map_view(room_name, shard))
+                    })
                         .and_then(move |executor| {
                             // and unsubscribe from rooms we no longer need data for.
                             let unneeded_rooms = executor
@@ -150,23 +154,40 @@ where
                                 .filter(|room_name| !rooms.contains(room_name))
                                 .collect::<Vec<RoomName>>();
 
-                            stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v)))
-                                .fold(executor, |executor, room_name| {
-                                    executor.unsubscribe(Channel::room_map_view(room_name))
-                                })
+                            stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v))).fold(
+                                executor,
+                                |executor, room_name| {
+                                    let shard = executor.settings.shard.clone();
+                                    executor.unsubscribe(Channel::room_map_view(room_name, shard))
+                                },
+                            )
                         }),
                 ) as Box<Future<Item = Self, Error = ()>>
             }
             WebsocketRequest::SetFocusRoom { room } => match (self.subscribed_room_view.get(), room) {
                 (None, None) => Box::new(future::ok(self)) as Box<Future<Item = Self, Error = ()>>,
                 (Some(ref r1), Some(ref r2)) if r1 == r2 => Box::new(future::ok(self)),
-                (None, Some(to_subscribe)) => Box::new(self.subscribe(Channel::room_detail(to_subscribe))),
-                (Some(to_unsubscribe), None) => Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe))),
-                (Some(to_unsubscribe), Some(to_subscribe)) => Box::new(
-                    self.unsubscribe(Channel::room_detail(to_unsubscribe))
-                        .and_then(move |executor| executor.subscribe(Channel::room_detail(to_subscribe))),
-                ),
+                (None, Some(to_subscribe)) => {
+                    let shard = self.settings.shard.clone();
+                    Box::new(self.subscribe(Channel::room_detail(to_subscribe, shard)))
+                }
+                (Some(to_unsubscribe), None) => {
+                    let shard = self.settings.shard.clone();
+                    Box::new(self.unsubscribe(Channel::room_detail(to_unsubscribe, shard)))
+                }
+                (Some(to_unsubscribe), Some(to_subscribe)) => {
+                    let shard = self.settings.shard.clone();
+                    Box::new(
+                        self.unsubscribe(Channel::room_detail(to_unsubscribe, shard))
+                            .and_then(move |executor| {
+                                let shard = executor.settings.shard.clone();
+                                executor.subscribe(Channel::room_detail(to_subscribe, shard))
+                            }),
+                    )
+                }
             },
+            WebsocketRequest::ChangeSettings { settings } => unimplemented!(),
+            WebsocketRequest::Exit => unimplemented!(),
         }
     }
 
@@ -461,10 +482,10 @@ where
         self.send(message)
             .and_then(move |executor| {
                 match channel {
-                    Channel::RoomMapView { room_name } => {
+                    Channel::RoomMapView { room_name, .. } => {
                         executor.subscribed_map_view.borrow_mut().insert(room_name);
                     }
-                    Channel::RoomDetail { room_name } => {
+                    Channel::RoomDetail { room_name, .. } => {
                         executor.subscribed_room_view.set(Some(room_name));
                     }
                     other => {
@@ -484,10 +505,16 @@ where
         self.send(message)
             .and_then(move |executor| {
                 match channel {
-                    Channel::RoomMapView { room_name } => {
+                    Channel::RoomMapView {
+                        room_name,
+                        shard_name, // we just assume that there's only one shard for now.
+                    } => {
                         executor.subscribed_map_view.borrow_mut().remove(&room_name);
                     }
-                    Channel::RoomDetail { room_name } => if Some(room_name) == executor.subscribed_room_view.get() {
+                    Channel::RoomDetail {
+                        room_name,
+                        shard_name, // we just assume that there's only one shard for now.
+                    } => if Some(room_name) == executor.subscribed_room_view.get() {
                         executor.subscribed_room_view.set(None);
                     },
                     other => {
@@ -664,8 +691,11 @@ mod read {
         }
 
         fn event_channel_update(&self, update: ChannelUpdate) -> Result<(), ExitNow> {
+            // TODO: what to do here if shard name does not equal saved shard? discard?
             match update {
-                ChannelUpdate::RoomMapView { room_name, update } => {
+                ChannelUpdate::RoomMapView {
+                    room_name, update, ..
+                } => {
                     let event = NetworkEvent::MapView {
                         room_name: room_name,
                         result: update,
@@ -673,7 +703,9 @@ mod read {
                     debug!("received map view update for {}!", room_name);
                     self.send(event)?;
                 }
-                ChannelUpdate::RoomDetail { room_name, update } => {
+                ChannelUpdate::RoomDetail {
+                    room_name, update, ..
+                } => {
                     let event = NetworkEvent::RoomView {
                         room_name: room_name,
                         result: update,

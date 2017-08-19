@@ -1,4 +1,7 @@
 use std::{fmt, thread};
+use std::cell::RefCell;
+use std::sync::Arc;
+use std::rc::Rc;
 
 use std::sync::mpsc as std_mpsc;
 use std::sync::mpsc::Sender as StdSender;
@@ -16,8 +19,8 @@ use screeps_api::{self, ArcTokenStorage};
 use {hyper, hyper_tls, tokio_core};
 
 use event::NetworkEvent;
-use request::{LoginDetails, NotLoggedIn, Request};
-use {Notify, ScreepsConnection};
+use request::Request;
+use {ConnectionSettings, Notify, ScreepsConnection};
 use diskcache;
 
 mod types;
@@ -43,10 +46,10 @@ pub struct Handler<N> {
     handles: Option<HandlerHandles>,
     /// Tokens saved.
     tokens: ArcTokenStorage,
+    /// Settings
+    settings: Arc<ConnectionSettings>,
     /// Disk cache database Handle
     disk_cache: diskcache::Cache,
-    /// Username and password in case we need to re-login.
-    login_info: Option<LoginDetails>,
     /// Window proxy in case we need to restart handler thread.
     notify: N,
 }
@@ -78,16 +81,20 @@ impl HandlerHandles {
         match GenericRequest::from(request) {
             GenericRequest::Http(r) => self.http_send.send(r).map_err(|e| e.into_inner().into()),
             GenericRequest::Websocket(r) => self.ws_send.send(r).map_err(|e| e.into_inner().into()),
+            GenericRequest::Both(hr, wr) => self.http_send
+                .send(hr)
+                .map_err(|e| e.into_inner().into())
+                .and_then(|()| self.ws_send.send(wr).map_err(|e| e.into_inner().into())),
         }
     }
 }
 
 impl<N> Handler<N> {
     /// Creates a new requests state, and starts an initial handler with a pending login request.
-    pub fn new(notify: N) -> Self {
+    pub fn new(settings: ConnectionSettings, notify: N) -> Self {
         Handler {
+            settings: Arc::new(settings),
             handles: None,
-            login_info: None,
             tokens: ArcTokenStorage::default(),
             // TODO: handle this gracefully
             disk_cache: diskcache::Cache::load().expect("loading the disk cache failed."),
@@ -97,12 +104,7 @@ impl<N> Handler<N> {
 }
 
 impl<N: Notify> Handler<N> {
-    fn start_handler(&mut self) -> Result<(), NotLoggedIn> {
-        let login_details = match self.login_info {
-            Some(ref tuple) => tuple.clone(),
-            None => return Err(NotLoggedIn),
-        };
-
+    fn start_handler(&mut self) {
         let mut queued: Option<Vec<NetworkEvent>> = None;
         if let Some(handles) = self.handles.take() {
             let mut queued_vec = Vec::new();
@@ -131,20 +133,18 @@ impl<N: Notify> Handler<N> {
             handler_send,
             self.notify.clone(),
             self.tokens.clone(),
-            login_details.clone(),
+            self.settings.clone(),
             self.disk_cache.clone(),
         );
 
         let remote = handler.start_async_and_get_remote();
 
         self.handles = Some(HandlerHandles::new(remote, http_send_to_handler, ws_send_to_handler, recv_from_handler));
-
-        Ok(())
     }
 }
 
 impl<N: Notify> ScreepsConnection for Handler<N> {
-    fn send(&mut self, request: Request) -> Result<(), NotLoggedIn> {
+    fn send(&mut self, request: Request) {
         // TODO: find out how to get panic info from the threaded thread, and report that we had to reconnect!
         let request_retry = match self.handles {
             Some(ref mut handles) => match handles.send(request) {
@@ -155,18 +155,13 @@ impl<N: Notify> ScreepsConnection for Handler<N> {
         };
 
         if let Some(request) = request_retry {
-            if let Request::Login { ref details } = request {
-                self.login_info = Some(details.clone());
-            }
-            self.start_handler()?;
+            self.start_handler();
             let send = self.handles
                 .as_ref()
                 .expect("expected handles to exist after freshly restarting");
             send.send(request)
                 .expect("expected freshly started handler to still be running");
         }
-
-        Ok(())
     }
 
     fn poll(&mut self) -> Option<NetworkEvent> {
@@ -189,11 +184,16 @@ impl<N> fmt::Debug for Handler<N> {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         fmt.debug_struct("Handler")
             .field("handles", &self.handles)
-            .field("login_info", &self.login_info)
+            .field("settings", &self.settings)
             .field("tokens", &self.tokens)
             .field("notify", &"<non-debug>")
             .finish()
     }
+}
+
+enum ExitResult {
+    ChangeSettings { new_settings: ConnectionSettings },
+    Exit,
 }
 
 
@@ -202,7 +202,7 @@ struct ThreadedHandler<N> {
     ws_recv: FuturesReceiver<WebsocketRequest>,
     send: StdSender<NetworkEvent>,
     notify: N,
-    login: LoginDetails,
+    settings: Arc<ConnectionSettings>,
     tokens: ArcTokenStorage,
     disk_cache: diskcache::Cache,
 }
@@ -213,7 +213,7 @@ impl<N: Notify> ThreadedHandler<N> {
         send: StdSender<NetworkEvent>,
         notify: N,
         tokens: ArcTokenStorage,
-        login: LoginDetails,
+        settings: Arc<ConnectionSettings>,
         disk_cache: diskcache::Cache,
     ) -> Self {
         ThreadedHandler {
@@ -221,7 +221,7 @@ impl<N: Notify> ThreadedHandler<N> {
             ws_recv: ws_recv,
             send: send,
             notify: notify,
-            login: login,
+            settings: settings,
             tokens: tokens,
             disk_cache: disk_cache,
         }
@@ -243,10 +243,12 @@ impl<N: Notify> ThreadedHandler<N> {
             ws_recv,
             send,
             notify,
-            login,
+            settings,
             tokens,
             disk_cache,
         } = self;
+
+        let settings_rc = Rc::new(RefCell::new(settings.clone()));
 
         let mut core = Core::new().expect("expected tokio core to succeed startup.");
 
@@ -286,7 +288,7 @@ impl<N: Notify> ThreadedHandler<N> {
                         send_results: send.clone(),
                         notify: notify.clone(),
                         executor_return: cloned_send,
-                        login: login.clone(),
+                        settings: settings_rc.clone(),
                         client: client.clone(),
                         disk_cache: disk_cache.clone(),
                     })
@@ -295,8 +297,7 @@ impl<N: Notify> ThreadedHandler<N> {
             );
         }
 
-        let ws_executor =
-            ws::Executor::new(handle.clone(), send.clone(), client.clone(), login.clone(), notify.clone());
+        let ws_executor = ws::Executor::new(handle.clone(), send.clone(), client.clone(), settings, notify.clone());
 
         // zip ensures that we have one token for each request! this way we'll
         // never have more than 5 concurrent requests.

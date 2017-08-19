@@ -3,7 +3,7 @@ use conrod::widget::*;
 
 use time;
 
-use network::{self, Request, ScreepsConnection};
+use network::{self, Request, ScreepsConnection, ConnectionSettings};
 
 use app::AppCell;
 use super::{frame, GraphicsState, HEADER_HEIGHT};
@@ -241,18 +241,19 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
     } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0 &&
         state.password.len() > 0
     {
+        // TODO: UI option for shard.
+        let settings = ConnectionSettings::new(state.username.clone(), state.password.clone(), "shard0".to_owned());
         match state.network {
             Some(ref mut net) => {
                 debug!("sending login request to existing network.");
-                net.send(Request::login(&*state.username, &*state.password))
-                    .expect("Cannot receive login error for login request.");
+                net.send(Request::change_settings(settings));
+                net.send(Request::login());
             }
             None => {
                 debug!("sending login request to new network.");
-                let mut network = network::ThreadedHandler::new((*notify).clone());
-                network
-                    .send(network::Request::login(&*state.username, &*state.password))
-                    .expect("Cannot receive login error for login request.");
+
+                let mut network = network::ThreadedHandler::new(settings, (*notify).clone());
+                network.send(network::Request::login());
                 state.network = Some(network);
                 state.pending_since = Some(time::now_utc());
             }

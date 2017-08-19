@@ -1,4 +1,8 @@
 use std::time::Duration;
+use std::rc::Rc;
+use std::cell::{Ref, RefCell};
+use std::ops::Deref;
+use std::sync::Arc;
 
 use std::sync::mpsc::Sender as StdSender;
 use futures::sync::mpsc::Sender as BoundedFuturesSender;
@@ -11,11 +15,10 @@ use screeps_api::{self, TokenStorage};
 
 use hyper;
 
-use request::LoginDetails;
 use event::NetworkEvent;
 
 use diskcache;
-use Notify;
+use {ConnectionSettings, Notify};
 
 use super::types::HttpRequest;
 use super::utils;
@@ -25,21 +28,23 @@ pub struct Executor<N, C, H, T> {
     pub send_results: StdSender<NetworkEvent>,
     pub notify: N,
     pub executor_return: BoundedFuturesSender<Executor<N, C, H, T>>,
-    pub login: LoginDetails,
+    pub settings: Rc<RefCell<Arc<ConnectionSettings>>>,
     pub client: screeps_api::Api<C, H, T>,
     pub disk_cache: diskcache::Cache,
 }
 
-impl<N, C, H, T> utils::HasClient<C, H, T> for Executor<N, C, H, T>
+impl<'a, N, C, H, T> utils::HasClient<'a, C, H, T> for Executor<N, C, H, T>
 where
     C: hyper::client::Connect,
     H: screeps_api::HyperClient<C>,
     T: TokenStorage,
 {
-    fn login(&self) -> &LoginDetails {
-        &self.login
+    type SettingsDeref = Ref<'a, ConnectionSettings>;
+
+    fn settings(&'a self) -> Self::SettingsDeref {
+        Ref::map(self.settings.borrow(), Deref::deref)
     }
-    fn api(&self) -> &screeps_api::Api<C, H, T> {
+    fn api(&'a self) -> &'a screeps_api::Api<C, H, T> {
         &self.client
     }
 }
@@ -56,18 +61,23 @@ where
         request: HttpRequest,
     ) -> Box<Future<Item = (Self, HttpRequest, NetworkEvent), Error = ()> + 'static> {
         match request {
-            HttpRequest::Login { details } => Box::new(
-                self.client
-                    .login(details.username(), details.password())
-                    .then(move |result| {
+            HttpRequest::Login => {
+                let username;
+                Box::new(
+                    {
+                        let settings = self.settings.borrow();
+                        username = settings.username.to_owned();
+                        self.client.login(&*settings.username, &*settings.password)
+                    }.then(move |result| {
                         let event = NetworkEvent::Login {
-                            username: details.username().to_owned(),
+                            username: username,
                             result: result.map(|logged_in| logged_in.return_to(&self.client.tokens)),
                         };
 
-                        future::ok((self, HttpRequest::Login { details: details }, event))
+                        future::ok((self, HttpRequest::Login, event))
                     }),
-            ),
+                )
+            }
             HttpRequest::MyInfo => {
                 let execute = |executor: Self| match executor.client.my_info() {
                     Ok(future) => Ok(future.then(move |result| {
@@ -131,13 +141,14 @@ where
                     })
                 }))
             }
+            HttpRequest::ChangeSettings { settings } => unimplemented!(),
+            HttpRequest::Exit => unimplemented!(),
         }
     }
 
     pub fn execute(self, request: HttpRequest) -> impl Future<Item = (), Error = ()> + 'static {
         self.exec_network(request).and_then(
             move |(exec, request, event)| -> Box<Future<Item = (), Error = ()> + 'static> {
-
                 if let Some(err) = event.error() {
                     if let screeps_api::ErrorKind::StatusCode(ref status) = *err.kind() {
                         if *status == StatusCode::TooManyRequests {

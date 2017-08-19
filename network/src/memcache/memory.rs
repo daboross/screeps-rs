@@ -1,5 +1,5 @@
-use std::borrow::Cow;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ use time::{self, Duration};
 use super::{ErrorEvent, LoginState};
 use event::{MapCacheData, NetworkEvent};
 use request::{Request, SelectedRooms};
-use ScreepsConnection;
+use {ScreepsConnection, ConnectionSettings};
 
 #[derive(Copy, Clone, Debug)]
 struct TimeoutValue<T> {
@@ -87,10 +87,9 @@ pub struct MemCache {
     last_requested_focus_room: Option<RoomName>,
 }
 
-pub struct NetworkedMemCache<'a, T: ScreepsConnection + 'a, F: FnMut(ErrorEvent) + 'a> {
+pub struct NetworkedMemCache<'a, T: ScreepsConnection + 'a> {
     cache: &'a mut MemCache,
     handler: &'a mut T,
-    error_callback: F,
 }
 
 impl MemCache {
@@ -210,7 +209,7 @@ impl MemCache {
         }
     }
 
-    pub fn align<'a, T, F>(&'a mut self, handler: &'a mut T, mut error_callback: F) -> NetworkedMemCache<'a, T, F>
+    pub fn align<'a, T, F>(&'a mut self, handler: &'a mut T, mut error_callback: F) -> NetworkedMemCache<'a, T>
     where
         T: ScreepsConnection,
         F: FnMut(ErrorEvent),
@@ -225,28 +224,24 @@ impl MemCache {
         NetworkedMemCache {
             cache: self,
             handler: handler,
-            error_callback: error_callback,
         }
     }
 }
 
-impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F> {
-    pub fn login<'b, U, P>(&mut self, username: U, password: P)
-    where
-        U: Into<Cow<'b, str>>,
-        P: Into<Cow<'b, str>>,
+impl<'a, C: ScreepsConnection> NetworkedMemCache<'a, C> {
+    pub fn login(&mut self)
     {
-        self.handler
-            .send(Request::login(username, password))
-            .expect("expected login call not to result in not-logged-in error")
+        self.handler.send(Request::login());
+    }
+
+    pub fn update_settings(&mut self, settings: ConnectionSettings) {
+        self.handler.send(Request::ChangeSettings { settings: Arc::new(settings) })
     }
 
     pub fn my_info(&mut self) -> Option<&screeps_api::MyInfo> {
         let holder = &mut self.cache.my_info;
         if holder.should_request(Some(Duration::minutes(10)), Duration::seconds(90)) {
-            if let Err(e) = self.handler.send(Request::MyInfo) {
-                (self.error_callback)(e.into())
-            }
+            self.handler.send(Request::MyInfo);
             holder.requested();
         }
 
@@ -265,20 +260,14 @@ impl<'a, C: ScreepsConnection, F: FnMut(ErrorEvent)> NetworkedMemCache<'a, C, F>
                     };
 
                     if resend {
-                        if let Err(e) = self.handler.send(Request::room_terrain(room_name)) {
-                            (self.error_callback)(e.into())
-                        }
+                        self.handler.send(Request::room_terrain(room_name));
                     }
                 }
             }
-            if let Err(e) = self.handler.send(Request::subscribe_map_view(rooms)) {
-                (self.error_callback)(e.into())
-            }
+            self.handler.send(Request::subscribe_map_view(rooms));
         }
         if focused != self.cache.last_requested_focus_room {
-            if let Err(e) = self.handler.send(Request::focus_room(focused)) {
-                (self.error_callback)(e.into())
-            }
+            self.handler.send(Request::focus_room(focused));
         }
         &self.cache.rooms
     }

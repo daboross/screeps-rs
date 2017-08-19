@@ -30,6 +30,8 @@ pub mod memcache;
 pub mod diskcache;
 pub mod tokio;
 
+use std::fmt;
+
 pub use request::{LoginDetails, NotLoggedIn, Request, SelectedRooms};
 pub use event::{MapCache, MapCacheData, NetworkEvent};
 pub use memcache::{ErrorEvent, LoginState, MemCache};
@@ -37,10 +39,8 @@ pub use tokio::Handler as TokioHandler;
 
 /// The backend connection handler for handling requests. Interface for `memcache` module to use.
 pub trait ScreepsConnection {
-    /// Send a request. The only error condition should be that the connection is currently not logged in.
-    ///
-    /// NotLoggedIn errors may instead be sent back as NetworkEvents, if using this be sure to account for both.
-    fn send(&mut self, r: Request) -> Result<(), NotLoggedIn>;
+    /// Send a request. Any and all errors will be returned in the future via poll()
+    fn send(&mut self, r: Request);
 
     /// Get the next available event if any, or return None if nothing new has happened.
     ///
@@ -54,4 +54,31 @@ pub struct Disconnected;
 
 pub trait Notify: Clone + Send + 'static {
     fn wakeup(&self) -> Result<(), Disconnected>;
+}
+
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub struct ConnectionSettings {
+    pub username: String,
+    pub password: String,
+    pub shard: Option<String>,
+}
+
+impl ConnectionSettings {
+    pub fn new<T: Into<Option<String>>>(username: String, password: String, shard: T) -> ConnectionSettings {
+        ConnectionSettings {
+            username: username,
+            password: password,
+            shard: shard.into(),
+        }
+    }
+}
+
+impl fmt::Debug for ConnectionSettings {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ConnectionSettings")
+            .field("username", &self.username)
+            .field("password", &"<hidden>")
+            .field("shard", &self.shard)
+            .finish()
+    }
 }

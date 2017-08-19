@@ -1,11 +1,10 @@
-use std::borrow::Cow;
-
 use std::ops::Range;
 use std::sync::Arc;
 use std::fmt;
 
 use screeps_api::RoomName;
 
+use ConnectionSettings;
 use self::Request::*;
 
 /// Error for not being logged in, and trying to send a query requiring authentication.
@@ -126,26 +125,18 @@ impl Iterator for IterSelectedRooms {
 }
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Request {
-    Login { details: LoginDetails },
+    Login,
     MyInfo,
+    ChangeSettings { settings: Arc<ConnectionSettings> },
+    Exit,
     RoomTerrain { room_name: RoomName },
     SetMapSubscribes { rooms: SelectedRooms },
     SetFocusRoom { room: Option<RoomName> },
 }
 
 impl Request {
-    pub fn login<'a, T, U>(username: T, password: U) -> Self
-    where
-        T: Into<Cow<'a, str>>,
-        U: Into<Cow<'a, str>>,
-    {
-        Login {
-            details: LoginDetails::new(username.into().into_owned(), password.into().into_owned()),
-        }
-    }
-
-    pub fn login_with_details(details: LoginDetails) -> Self {
-        Login { details: details }
+    pub fn login() -> Self {
+        Login
     }
 
     pub fn my_info() -> Self {
@@ -164,5 +155,11 @@ impl Request {
 
     pub fn focus_room(room_name: Option<RoomName>) -> Self {
         SetFocusRoom { room: room_name }
+    }
+
+    pub fn change_settings(settings: ConnectionSettings) -> Self {
+        ChangeSettings {
+            settings: Arc::new(settings),
+        }
     }
 }
