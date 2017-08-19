@@ -49,7 +49,7 @@ Neighbor projects:
 [`rust-screeps-api`]: https://github.com/daboross/rust-screeps-api
 [`screeps-rs-network`]: network/
 [`screeps-rs-ui`]: ui/
-[`screeps-rs`]: ./
+[`screeps-rs`]: https://github.com/daboross/screeps-rs
 [`python-screeps`]: https://github.com/screepers/python-screeps/
 [`node-screeps-api`]: https://github.com/screepers/node-screeps-api
 [`screeps-silica`]: https://github.com/daboross/screeps-silica/
