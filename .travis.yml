@@ -51,7 +51,7 @@ before_script:
   # build openssl
   if [ -n "$BUILD_OPENSSL_VERSION" ]; then
       echo "building openssl"
-      ./script/build.sh
+      ./scripts/build.sh
   fi
 - |
   # set openssl configuration

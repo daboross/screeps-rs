@@ -30,7 +30,7 @@ build: off
 
 before_deploy:
 - cargo build --release -p screeps-rs-ui --target %TARGET%
-- ps: script\predeploy.ps1
+- ps: scripts\predeploy.ps1
 
 deploy:
     provider: GitHub
