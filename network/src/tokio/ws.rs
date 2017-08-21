@@ -102,6 +102,8 @@ enum WebsocketRequestOrRaw {
     Raw(u16, websocket::OwnedMessage),
 }
 
+struct WsExit;
+
 impl<N, C, H, T> Executor<N, C, H, T>
 where
     C: hyper::client::Connect + 'static,
@@ -118,6 +120,7 @@ where
                     .expect("expected run to only ever be called once")
                     .map(|(id, m)| WebsocketRequestOrRaw::Raw(id, m)),
             )
+            .map_err(|()| WsExit)
             .fold(self, |executor, request| match request {
                 WebsocketRequestOrRaw::Structured(request) => {
                     Box::new(executor.execute(request)) as Box<Future<Item = _, Error = _>>
@@ -125,10 +128,11 @@ where
                 WebsocketRequestOrRaw::Raw(id, message) => executor.send_raw(id, message),
             })
             .and_then(|executor| future::ok(drop(executor)))
+            .or_else(|self::WsExit| Box::new(future::ok(())))
     }
 
 
-    fn execute(self, request: WebsocketRequest) -> impl Future<Item = Self, Error = ()> + 'static {
+    fn execute(mut self, request: WebsocketRequest) -> impl Future<Item = Self, Error = WsExit> + 'static {
         match request {
             WebsocketRequest::SetMapSubscribes { rooms } => {
                 let room_set = self.subscribed_map_view.clone();
@@ -162,10 +166,10 @@ where
                                 },
                             )
                         }),
-                ) as Box<Future<Item = Self, Error = ()>>
+                ) as Box<Future<Item = Self, Error = WsExit>>
             }
             WebsocketRequest::SetFocusRoom { room } => match (self.subscribed_room_view.get(), room) {
-                (None, None) => Box::new(future::ok(self)) as Box<Future<Item = Self, Error = ()>>,
+                (None, None) => Box::new(future::ok(self)) as Box<Future<Item = Self, Error = WsExit>>,
                 (Some(ref r1), Some(ref r2)) if r1 == r2 => Box::new(future::ok(self)),
                 (None, Some(to_subscribe)) => {
                     let shard = self.settings.shard.clone();
@@ -186,12 +190,104 @@ where
                     )
                 }
             },
-            WebsocketRequest::ChangeSettings { settings } => unimplemented!(),
-            WebsocketRequest::Exit => unimplemented!(),
+            WebsocketRequest::ChangeSettings { settings } => {
+                debug!("websocket connection received new settings");
+                // _needs_to_restart is
+                let (unsubscribe_from_shard, restart) = {
+                    let current = &mut self.settings;
+                    match (
+                        settings.username == current.username,
+                        settings.password == current.password,
+                        settings.shard == current.shard,
+                    ) {
+                        (true, true, true) => (None, false),
+                        (true, false, true) => {
+                            *current = settings;
+                            (None, false)
+                        }
+                        (true, _, false) => {
+                            // unsubscribe from everything for the old shard.
+                            let old_shard = current.shard.clone();
+                            *current = settings;
+
+                            (Some(old_shard), false)
+                        }
+                        (false, _, _) => {
+                            // unsubscribe from everything for the old shard.
+                            let old_shard = current.shard.clone();
+                            *current = settings;
+
+                            while let Some(_) = self.http_client.tokens.take_token() {}
+                            (Some(old_shard), true)
+                        }
+                    }
+                };
+
+                // and unsubscribe from rooms we no longer need data for.
+                let unsubscribe_map_views = move |exec: Self, unneeded_rooms: Vec<RoomName>, old_shard| {
+                    stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v))).fold(
+                        (exec, old_shard),
+                        |(executor, old_shard), room_name| {
+                            let shard = executor.settings.shard.clone();
+                            executor
+                                .unsubscribe(Channel::room_map_view(room_name, old_shard))
+                                .map(|exec| (exec, shard))
+                        },
+                    )
+                };
+                let unsubscribe_detail = move |exec: Self, room_name, old_shard| {
+                    exec.unsubscribe(Channel::room_detail(room_name, old_shard))
+                };
+
+                let prerestart_future = match unsubscribe_from_shard {
+                    Some(old_shard) => {
+                        let unsubscribed_rooms = self.subscribed_map_view
+                            .borrow()
+                            .iter()
+                            .cloned()
+                            .collect::<Vec<RoomName>>();
+                        let subscribed_room = self.subscribed_room_view.get();
+
+                        match (unsubscribed_rooms.len(), subscribed_room) {
+                            (0, Some(to_unsubscribe)) => {
+                                (Box::new(unsubscribe_detail(self, to_unsubscribe, old_shard)) as
+                                    Box<Future<Item = Self, Error = _> + 'static>)
+                            }
+                            (_, Some(to_unsubscribe)) => Box::new(
+                                unsubscribe_map_views(self, unsubscribed_rooms, old_shard)
+                                    .map(move |(exec, old_shard)| (exec, old_shard, to_unsubscribe))
+                                    .and_then(move |(exec, old_shard, room)| unsubscribe_detail(exec, room, old_shard)),
+                            ),
+                            (0, None) => Box::new(future::ok(self)),
+                            (_, None) => Box::new(
+                                unsubscribe_map_views(self, unsubscribed_rooms, old_shard).map(|(exec, _)| exec),
+                            ),
+                        }
+                    }
+                    None => Box::new(future::ok(self)),
+                };
+
+                // TODO: there's a fairly convoluted pattern here for restarting..
+                // Whenever a new settings is sent, the websocket request _must_ be restarted fully in this scheme,
+                // even if nothing's changed. This is because the Handler doesn't know if anything in the settings
+                // have changed, and thus can't conditionally switch out the old sender for a new sender...
+                if restart {
+                    debug!("scheduling websocket connection restart due to new settings.");
+                    Box::new(prerestart_future.map(|mut executor| {
+                        debug!("restarting websocket connection.");
+                        executor.client = None; // TODO: how do we force exit the receiver thread for this client..?
+                        executor.connection_id += 1;
+                        executor
+                    })) as Box<Future<Item = _, Error = _> + 'static>
+                } else {
+                    prerestart_future
+                }
+            }
+            WebsocketRequest::Exit => Box::new(future::err(WsExit)),
         }
     }
 
-    fn send_raw(mut self, id: u16, message: websocket::OwnedMessage) -> Box<Future<Item = Self, Error = ()>> {
+    fn send_raw(mut self, id: u16, message: websocket::OwnedMessage) -> Box<Future<Item = Self, Error = WsExit>> {
         // ignore messages from past closed connections.
         if id == self.connection_id {
             if let Some(conn) = self.client.take() {
@@ -476,7 +572,7 @@ where
             })
     }
 
-    fn subscribe(self, channel: Channel<'static>) -> impl Future<Item = Self, Error = ()> + 'static {
+    fn subscribe(self, channel: Channel<'static>) -> impl Future<Item = Self, Error = WsExit> + 'static {
         let message = websocket::OwnedMessage::Text(screeps_api::websocket::subscribe(&channel));
         self.send(message)
             .and_then(move |executor| {
@@ -499,20 +595,20 @@ where
             })
     }
 
-    fn unsubscribe(self, channel: Channel<'static>) -> impl Future<Item = Self, Error = ()> + 'static {
+    fn unsubscribe(self, channel: Channel<'static>) -> impl Future<Item = Self, Error = WsExit> + 'static {
         let message = websocket::OwnedMessage::Text(screeps_api::websocket::unsubscribe(&channel));
         self.send(message)
             .and_then(move |executor| {
                 match channel {
                     Channel::RoomMapView {
                         room_name,
-                        shard_name, // we just assume that there's only one shard for now.
+                        shard_name: _shard_name, // we just assume that there's only one shard for now.
                     } => {
                         executor.subscribed_map_view.borrow_mut().remove(&room_name);
                     }
                     Channel::RoomDetail {
                         room_name,
-                        shard_name, // we just assume that there's only one shard for now.
+                        shard_name: _shard_name, // we just assume that there's only one shard for now.
                     } => if Some(room_name) == executor.subscribed_room_view.get() {
                         executor.subscribed_room_view.set(None);
                     },
@@ -603,7 +699,10 @@ mod read {
                         executor.event(message)?;
                         Ok(executor)
                     })
-                    .then(|_| future::ok::<(), ()>(())),
+                    .then(|_| {
+                        debug!("WS reader exiting");
+                        future::ok::<(), ()>(())
+                    }),
             );
         }
 

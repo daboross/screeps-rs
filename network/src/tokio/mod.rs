@@ -30,13 +30,6 @@ mod utils;
 
 use self::types::{GenericRequest, HttpRequest, WebsocketRequest};
 
-// TODO: there currently isn't any way to propagate new login information to executors.
-//
-// This could be fixed by adding a 'UpdateLogin' variant to HttpRequest and WebsocketRequest, and have the
-// HttpRequest one be re-sent through the queue 5 times (each handler, when it receives this event, would
-// process it then re-enter it into the queue with a decreased counter (but only decrease the counter if the
-// login info is different).
-
 pub struct Handler<N> {
     /// Receiver and sender interacting with the current threaded handler.
     ///
@@ -77,8 +70,8 @@ impl HandlerHandles {
         }
     }
 
-    fn send(&self, request: Request) -> Result<(), Request> {
-        match GenericRequest::from(request) {
+    fn send(&mut self, request: Request) -> Result<(), Request> {
+        match request.into() {
             GenericRequest::Http(r) => self.http_send.send(r).map_err(|e| e.into_inner().into()),
             GenericRequest::Websocket(r) => self.ws_send.send(r).map_err(|e| e.into_inner().into()),
             GenericRequest::Both(hr, wr) => self.http_send
@@ -157,7 +150,7 @@ impl<N: Notify> ScreepsConnection for Handler<N> {
         if let Some(request) = request_retry {
             self.start_handler();
             let send = self.handles
-                .as_ref()
+                .as_mut()
                 .expect("expected handles to exist after freshly restarting");
             send.send(request)
                 .expect("expected freshly started handler to still be running");
@@ -305,7 +298,7 @@ impl<N: Notify> ThreadedHandler<N> {
 
                     future::ok(())
                 })
-                .fold((), |(), _| future::ok(()))
+                .fold((), |(), ()| future::ok(()))
                 .join(ws_executor.run(ws_recv)),
         );
 

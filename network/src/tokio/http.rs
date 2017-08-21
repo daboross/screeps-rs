@@ -49,6 +49,11 @@ where
     }
 }
 
+enum HttpExecError<N, C, H, T> {
+    Continue(Executor<N, C, H, T>),
+    Exit,
+}
+
 impl<N, C, H, T> Executor<N, C, H, T>
 where
     C: hyper::client::Connect,
@@ -59,7 +64,7 @@ where
     fn exec_network(
         self,
         request: HttpRequest,
-    ) -> Box<Future<Item = (Self, HttpRequest, NetworkEvent), Error = ()> + 'static> {
+    ) -> Box<Future<Item = (Self, HttpRequest, NetworkEvent), Error = HttpExecError<N, C, H, T>> + 'static> {
         match request {
             HttpRequest::Login => {
                 let username;
@@ -141,45 +146,69 @@ where
                     })
                 }))
             }
-            HttpRequest::ChangeSettings { settings } => unimplemented!(),
-            HttpRequest::Exit => unimplemented!(),
+            HttpRequest::ChangeSettings { settings } => {
+                {
+                    let mut current = self.settings.borrow_mut();
+                    match (
+                        settings.username == current.username,
+                        settings.password == current.password,
+                        settings.shard == current.shard,
+                    ) {
+                        (true, true, true) => (),
+                        (true, false, _) | (true, _, false) => *current = settings.clone(),
+                        (false, _, _) => {
+                            *current = settings.clone();
+                            while let Some(_) = self.client.tokens.take_token() {}
+                        }
+                    }
+                }
+                Box::new(future::err(HttpExecError::Continue(self)))
+            }
+            HttpRequest::Exit => Box::new(future::err(HttpExecError::Exit)),
         }
     }
 
     pub fn execute(self, request: HttpRequest) -> impl Future<Item = (), Error = ()> + 'static {
-        self.exec_network(request).and_then(
-            move |(exec, request, event)| -> Box<Future<Item = (), Error = ()> + 'static> {
-                if let Some(err) = event.error() {
-                    if let screeps_api::ErrorKind::StatusCode(ref status) = *err.kind() {
-                        if *status == StatusCode::TooManyRequests {
-                            debug!("starting 5-second timeout from TooManyRequests error.");
+        self.exec_network(request)
+            .then(move |result| -> Box<Future<Item = (), Error = ()> + 'static> {
+                let exec = match result {
+                    Ok((exec, request, event)) => {
+                        if let Some(err) = event.error() {
+                            if let screeps_api::ErrorKind::StatusCode(ref status) = *err.kind() {
+                                if *status == StatusCode::TooManyRequests {
+                                    debug!("starting 5-second timeout from TooManyRequests error.");
 
-                            let timeout = Timeout::new(Duration::from_secs(5), &exec.handle).expect(
-                                "expected Timeout::new() to only fail if tokio \
-                                 core has been stopped",
-                            );
+                                    let timeout = Timeout::new(Duration::from_secs(5), &exec.handle).expect(
+                                        "expected Timeout::new() to only fail if tokio \
+                                         core has been stopped",
+                                    );
 
-                            return Box::new(timeout.then(|_| {
-                                debug!("5-second timeout finished.");
+                                    return Box::new(timeout.then(|_| {
+                                        debug!("5-second timeout finished.");
 
-                                exec.execute(request)
-                            }));
+                                        exec.execute(request)
+                                    }));
+                                }
+                            }
                         }
-                    }
-                }
 
-                match exec.send_results.send(event) {
-                    Ok(_) => {
-                        trace!("successfully finished a request.");
-                        let result = exec.notify.wakeup();
-                        if let Err(_) = result {
-                            warn!("failed to wake up main event loop after sending result successfully.")
+                        match exec.send_results.send(event) {
+                            Ok(_) => {
+                                trace!("successfully finished a request.");
+                                let result = exec.notify.wakeup();
+                                if let Err(_) = result {
+                                    warn!("failed to wake up main event loop after sending result successfully.")
+                                }
+                            }
+                            Err(_) => {
+                                warn!("failed to send the result of a request.");
+                            }
                         }
+                        exec
                     }
-                    Err(_) => {
-                        warn!("failed to send the result of a request.");
-                    }
-                }
+                    Err(HttpExecError::Continue(exec)) => exec,
+                    Err(HttpExecError::Exit) => return Box::new(future::err(())),
+                };
 
                 Box::new(exec.executor_return.clone().send(exec).then(|result| {
                     if let Err(_) = result {
@@ -187,7 +216,6 @@ where
                     };
                     future::ok(())
                 }))
-            },
-        )
+            })
     }
 }
