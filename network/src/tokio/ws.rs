@@ -410,6 +410,7 @@ where
                             .send(websocket::OwnedMessage::Pong(data))
                             .then(|result| match result {
                                 Ok(connection) => {
+                                    // recursion here
                                     Box::new(test_response(executor, connection)) as Box<Future<Item = _, Error = _>>
                                 }
                                 Err(e) => {
@@ -444,9 +445,36 @@ where
                                         return Box::new(finish_ping(executor, connection, data)) as
                                             Box<Future<Item = _, Error = _>>
                                     }
-                                    other => Err(parsing::ParseError::Other(
-                                        format!("expected text websocket message, found {:?}", other),
-                                    )),
+                                    other => {
+                                        let err = match other {
+                                            websocket::OwnedMessage::Pong(data) => {
+                                                debug!("pong received: {:?}", data);
+                                                Ok(())
+                                            }
+                                            websocket::OwnedMessage::Binary(data) => {
+                                                warn!("ignoring binary data received on websocket: {:?}", data);
+                                                Ok(())
+                                            }
+                                            websocket::OwnedMessage::Close(reason) => {
+                                                warn!(
+                                                    "websocket closed while waiting for 'auth ok' response: {:?}",
+                                                    reason
+                                                );
+                                                Ok(())
+                                            }
+                                            other => Err(parsing::ParseError::Other(
+                                                format!("expected text websocket message, found {:?}", other),
+                                            )),
+                                        };
+                                        match err {
+                                            Ok(()) => {
+                                                // recursion here
+                                                return Box::new(test_response(executor, connection)) as
+                                                    Box<Future<Item = _, Error = _>>;
+                                            }
+                                            Err(e) => Err(e),
+                                        }
+                                    }
                                 };
 
                                 let text = match text {
@@ -507,6 +535,12 @@ where
 
                                                     return Box::new(future::err(executor)) as
                                                         Box<Future<Item = _, Error = _>>;
+                                                }
+                                                // TODO: duplicated below in actual receiver
+                                                msg @ parsing::ScreepsMessage::ServerProtocol { .. } |
+                                                msg @ parsing::ScreepsMessage::ServerPackage { .. } |
+                                                msg @ parsing::ScreepsMessage::ServerTime { .. } => {
+                                                    debug!("received protocol message: {:?}", msg);
                                                 }
                                                 other => {
                                                     warn!(
@@ -761,6 +795,7 @@ mod read {
         }
         fn event_screeps_message(&self, message: ScreepsMessage) -> Result<(), ExitNow> {
             match message {
+                // TODO: duplicated above in login protocol
                 msg @ ScreepsMessage::ServerProtocol { .. } |
                 msg @ ScreepsMessage::ServerPackage { .. } |
                 msg @ ScreepsMessage::ServerTime { .. } => {
