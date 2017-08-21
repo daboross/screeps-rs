@@ -6,10 +6,10 @@ use conrod::widget::*;
 use screeps_api;
 
 use network::{self, SelectedRooms};
-use super::rendering::MapViewOffset;
+use rendering::MapViewOffset;
 
 use app::AppCell;
-use super::{frame, left_panel_available, AdditionalRender, GraphicsState, PanelStates};
+use layout::{frame, left_panel_available, AdditionalRender, GraphicsState, PanelStates};
 use self::room_view_widget::ScrollableRoomView;
 
 const ZOOM_MODIFIER: f64 = 1.0 / 500.0;

@@ -2,17 +2,17 @@ use glium::Surface;
 use app::{App, AppCell};
 use events::Event;
 
-use {conrod, events, glutin, ui};
+use {conrod, events, glutin, layout};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
     let mut events = events::EventLoop::new(events);
 
-    let mut state = ui::GraphicsState::login_screen();
+    let mut state = layout::GraphicsState::login_screen();
 
     debug!("Starting event loop.");
 
     events.run_loop(|control, event| {
-        if let ui::GraphicsState::Exit = state {
+        if let layout::GraphicsState::Exit = state {
             info!("exiting.");
             control.exit();
             return;
@@ -87,12 +87,12 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     );
 
                     // Create main screen.
-                    ui::create_ui(&mut cell, &mut state);
+                    layout::create_ui(&mut cell, &mut state);
                 }
 
                 // Render the `Ui` and then display it on the screen.
                 if let Some(primitives) = app.ui.draw_if_changed() {
-                    use ui::BACKGROUND_RGB;
+                    use layout::BACKGROUND_RGB;
 
                     match additional_render {
                         Some(r) => app.renderer

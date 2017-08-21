@@ -1,6 +1,5 @@
 mod login_screen;
 mod room_view;
-mod rendering;
 
 use std::default::Default;
 use std::mem;
@@ -13,7 +12,7 @@ use network;
 
 pub use self::login_screen::LoginScreenState;
 pub use self::room_view::RoomViewState;
-pub use self::rendering::AdditionalRender;
+pub use rendering::AdditionalRender;
 
 const HEADER_HEIGHT: conrod::Scalar = 30.0;
 

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use {conrod, glium, glutin, ui};
+use {conrod, glium, glutin, layout, rendering};
 
 use network::{GlutinNotify, MemCache};
 
@@ -9,7 +9,7 @@ pub struct App {
     pub ui: conrod::Ui,
     pub display: glium::Display,
     pub image_map: conrod::image::Map<glium::texture::Texture2d>,
-    pub ids: ui::Ids,
+    pub ids: layout::Ids,
     pub renderer: conrod::backend::glium::Renderer,
     pub net_cache: MemCache,
     pub notify: GlutinNotify,
@@ -22,10 +22,10 @@ pub struct AppCell<'a, 'b: 'a, 'c> {
     pub ui: &'a mut conrod::UiCell<'b>,
     pub display: &'a glium::Display,
     pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
-    pub ids: &'a mut ui::Ids,
+    pub ids: &'a mut layout::Ids,
     pub renderer: &'a mut conrod::backend::glium::Renderer,
     pub net_cache: &'a mut MemCache,
-    pub additional_rendering: &'c mut Option<ui::AdditionalRender>,
+    pub additional_rendering: &'c mut Option<rendering::AdditionalRender>,
     pub notify: &'a GlutinNotify,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
@@ -45,7 +45,7 @@ impl App {
         let renderer =
             conrod::backend::glium::Renderer::new(&window).expect("expected loading conrod glium renderer to succeed.");
         let image_map = conrod::image::Map::new();
-        let ids = ui::Ids::new(ui.widget_id_generator());
+        let ids = layout::Ids::new(ui.widget_id_generator());
 
         App {
             ui: ui,
@@ -65,10 +65,10 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
         cell: &'a mut conrod::UiCell<'b>,
         display: &'a glium::Display,
         image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
-        ids: &'a mut ui::Ids,
+        ids: &'a mut layout::Ids,
         renderer: &'a mut conrod::backend::glium::Renderer,
         net_cache: &'a mut MemCache,
-        additional_rendering: &'c mut Option<ui::AdditionalRender>,
+        additional_rendering: &'c mut Option<rendering::AdditionalRender>,
         notify: &'a GlutinNotify,
     ) -> Self {
         AppCell {

@@ -27,7 +27,8 @@ pub mod app;
 pub mod setup;
 pub mod events;
 pub mod window_loop;
-pub mod ui;
+pub mod layout;
+pub mod rendering;
 pub mod network;
 pub mod widgets;
 

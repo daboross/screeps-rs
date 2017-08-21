@@ -7,8 +7,8 @@ use network::{self, ConnectionSettings, Request, ScreepsConnection};
 use widgets::text_box::TextBox;
 
 use app::AppCell;
-use super::{frame, GraphicsState, HEADER_HEIGHT};
-use super::room_view::RoomViewState;
+use layout::{frame, GraphicsState, HEADER_HEIGHT};
+use layout::room_view::RoomViewState;
 
 const LOGIN_WIDTH: conrod::Scalar = 300.0;
 const LOGIN_HEIGHT: conrod::Scalar = 200.0;
