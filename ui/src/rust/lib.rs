@@ -29,6 +29,7 @@ pub mod events;
 pub mod window_loop;
 pub mod ui;
 pub mod network;
+pub mod widgets;
 
 pub use app::App;
 
@@ -43,3 +44,5 @@ where
 
     window_loop::main_window_loop(events_loop, app);
 }
+
+use conrod::{Theme, widget};

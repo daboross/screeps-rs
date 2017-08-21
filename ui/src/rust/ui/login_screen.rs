@@ -4,6 +4,7 @@ use conrod::widget::*;
 use time;
 
 use network::{self, ConnectionSettings, Request, ScreepsConnection};
+use widgets::text_box::TextBox;
 
 use app::AppCell;
 use super::{frame, GraphicsState, HEADER_HEIGHT};
@@ -84,7 +85,7 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         ..
     } = *app;
 
-    use conrod::widget::text_box::Event as TextBoxEvent;
+    use widgets::text_box::Event as TextBoxEvent;
 
     let body = Canvas::new().color(color::CHARCOAL).border(0.0);
     frame(ui, ids, ids.body, body);
