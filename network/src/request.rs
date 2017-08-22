@@ -127,6 +127,7 @@ impl Iterator for IterSelectedRooms {
 pub enum Request {
     Login,
     MyInfo,
+    ShardList,
     ChangeSettings { settings: Arc<ConnectionSettings> },
     Exit,
     RoomTerrain { room_name: RoomName },
@@ -141,6 +142,10 @@ impl Request {
 
     pub fn my_info() -> Self {
         MyInfo
+    }
+
+    pub fn shard_list() -> Self {
+        ShardList
     }
 
     pub fn room_terrain(room_name: RoomName) -> Self {

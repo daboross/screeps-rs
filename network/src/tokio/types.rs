@@ -9,6 +9,7 @@ use ConnectionSettings;
 pub enum HttpRequest {
     Login,
     MyInfo,
+    ShardList,
     RoomTerrain { room_name: screeps_api::RoomName },
     ChangeSettings { settings: Arc<ConnectionSettings> },
     Exit,
@@ -34,6 +35,7 @@ impl From<Request> for GenericRequest {
         match r {
             Request::Login => GenericRequest::Http(HttpRequest::Login),
             Request::MyInfo => GenericRequest::Http(HttpRequest::MyInfo),
+            Request::ShardList => GenericRequest::Http(HttpRequest::ShardList),
             Request::RoomTerrain { room_name } => GenericRequest::Http(HttpRequest::RoomTerrain {
                 room_name: room_name,
             }),
@@ -57,6 +59,7 @@ impl Into<Request> for HttpRequest {
         match self {
             HttpRequest::Login => Request::Login,
             HttpRequest::MyInfo => Request::MyInfo,
+            HttpRequest::ShardList => Request::ShardList,
             HttpRequest::RoomTerrain { room_name } => Request::RoomTerrain {
                 room_name: room_name,
             },

@@ -103,6 +103,21 @@ where
 
                 utils::execute_or_login_and_execute(self, execute, handle_err)
             }
+            HttpRequest::ShardList => Box::new(self.client.shard_list().then(move |result| {
+                future::ok((
+                    self,
+                    HttpRequest::ShardList,
+                    NetworkEvent::ShardList {
+                        result: match result {
+                            Ok(v) => Ok(Some(v)),
+                            Err(e) => match *e.kind() {
+                                screeps_api::ErrorKind::StatusCode(hyper::StatusCode::NotFound) => Ok(None),
+                                _ => Err(e),
+                            },
+                        },
+                    },
+                ))
+            })),
             HttpRequest::RoomTerrain { room_name } => {
                 Box::new(self.disk_cache.get_terrain(room_name).then(move |result| {
                     match result {

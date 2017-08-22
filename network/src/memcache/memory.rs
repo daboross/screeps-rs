@@ -81,6 +81,7 @@ impl<T> TimeoutValue<T> {
 pub struct MemCache {
     login: TimeoutValue<()>,
     my_info: TimeoutValue<screeps_api::MyInfo>,
+    shard_list: TimeoutValue<Option<Vec<screeps_api::ShardInfo>>>,
     rooms: Rc<RefCell<MapCacheData>>,
     requested_rooms: HashMap<RoomName, time::Timespec>,
     last_requested_room_info: Option<SelectedRooms>,
@@ -104,6 +105,7 @@ impl MemCache {
                 result,
             } => self.login.event(result)?,
             NetworkEvent::MyInfo { result } => self.my_info.event(result)?,
+            NetworkEvent::ShardList { result } => self.shard_list.event(result)?,
             NetworkEvent::RoomTerrain { room_name, result } => {
                 let terrain = result?;
                 self.rooms
@@ -247,6 +249,16 @@ impl<'a, C: ScreepsConnection> NetworkedMemCache<'a, C> {
         }
 
         holder.get()
+    }
+
+    pub fn shard_list(&mut self) -> Option<Option<&[screeps_api::ShardInfo]>> {
+        let holder = &mut self.cache.shard_list;
+        if holder.should_request(Some(Duration::hours(6)), Duration::seconds(90)) {
+            self.handler.send(Request::ShardList);
+            holder.requested();
+        }
+
+        holder.get().map(|o| o.as_ref().map(AsRef::as_ref))
     }
 
     pub fn view_rooms(&mut self, rooms: SelectedRooms, focused: Option<RoomName>) -> &Rc<RefCell<MapCacheData>> {

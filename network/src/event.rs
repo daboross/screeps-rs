@@ -34,6 +34,9 @@ pub enum NetworkEvent {
     MyInfo {
         result: Result<screeps_api::MyInfo, screeps_api::Error>,
     },
+    ShardList {
+        result: Result<Option<Vec<screeps_api::ShardInfo>>, screeps_api::Error>,
+    },
     RoomTerrain {
         room_name: screeps_api::RoomName,
         result: Result<screeps_api::TerrainGrid, screeps_api::Error>,
@@ -59,6 +62,7 @@ impl NetworkEvent {
         match *self {
             NetworkEvent::Login { ref result, .. } => result.as_ref().err(),
             NetworkEvent::MyInfo { ref result, .. } => result.as_ref().err(),
+            NetworkEvent::ShardList { ref result, .. } => result.as_ref().err(),
             NetworkEvent::RoomTerrain { ref result, .. } => result.as_ref().err(),
             NetworkEvent::WebsocketHttpError { ref error } => Some(error),
             NetworkEvent::MapView { .. } |
