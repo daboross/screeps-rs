@@ -192,7 +192,6 @@ where
             },
             WebsocketRequest::ChangeSettings { settings } => {
                 debug!("websocket connection received new settings");
-                // _needs_to_restart is
                 let (unsubscribe_from_shard, restart) = {
                     let current = &mut self.settings;
                     match (
@@ -267,10 +266,6 @@ where
                     None => Box::new(future::ok(self)),
                 };
 
-                // TODO: there's a fairly convoluted pattern here for restarting..
-                // Whenever a new settings is sent, the websocket request _must_ be restarted fully in this scheme,
-                // even if nothing's changed. This is because the Handler doesn't know if anything in the settings
-                // have changed, and thus can't conditionally switch out the old sender for a new sender...
                 if restart {
                     debug!("scheduling websocket connection restart due to new settings.");
                     Box::new(prerestart_future.map(|mut executor| {

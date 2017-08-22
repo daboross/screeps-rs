@@ -50,6 +50,7 @@ pub struct MergedPrimitives<'a, T: Sized> {
 }
 
 impl AdditionalRender {
+    #[inline(always)]
     pub fn map_view(replace: widget::Id, rooms: SelectedRooms, cache: MapCache, offset: MapViewOffset) -> Self {
         AdditionalRender {
             replace: replace,
@@ -58,6 +59,7 @@ impl AdditionalRender {
         }
     }
 
+    #[inline]
     pub fn merged_walker<T: PrimitiveWalker>(&self, walker: T) -> MergedPrimitives<T> {
         MergedPrimitives {
             custom: Some(BorrowedRender {
@@ -75,6 +77,7 @@ impl AdditionalRender {
 }
 
 impl<'a> BorrowedRender<'a> {
+    #[inline]
     pub fn into_primitives(self, replacing_primitive: &Primitive) -> Box<Iterator<Item = Primitive<'static>> + 'a> {
         let parent_rect = replacing_primitive.rect;
         let parent_scizzor = replacing_primitive.scizzor;
@@ -98,6 +101,7 @@ impl<'a> BorrowedRender<'a> {
 }
 
 impl<'a, T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<'a, T> {
+    #[inline(always)]
     fn next_primitive(&mut self) -> Option<Primitive> {
         if let Some(ref mut iter) = self.currently_replacing {
             if let Some(p) = iter.next() {

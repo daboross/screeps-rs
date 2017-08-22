@@ -20,6 +20,7 @@ pub struct MapViewOffset {
 }
 
 impl MapViewOffset {
+    #[inline(always)]
     pub fn new(x: f64, y: f64, size: f64) -> Self {
         MapViewOffset {
             x_offset: x,
@@ -42,6 +43,7 @@ impl MapViewOffset {
 
 /// Logic put into separate function because it's useful both when creating an iterator
 /// and when advancing that iterator.
+#[inline(always)]
 fn find_next_available_room<'a>(
     data: &Ref<'a, MapCacheData>,
     start_room_name: RoomName,
@@ -75,6 +77,7 @@ fn find_next_available_room<'a>(
 
 /// Logic put into separate function because it's useful both when creating an iterator
 /// and when advancing that iterator.
+#[inline(always)]
 fn find_next_available_map_view_room<'a>(
     data: &Ref<'a, MapCacheData>,
     start_room_name: RoomName,
@@ -128,7 +131,7 @@ enum MapIteratorState {
 }
 
 impl MapIteratorState {
-    #[inline]
+    #[inline(always)]
     fn first(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.roads.is_empty() {
             Some(MapIteratorState::Roads(0))
@@ -136,7 +139,7 @@ impl MapIteratorState {
             Self::next_from_roads(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_roads(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.power_or_power_bank.is_empty() {
             Some(MapIteratorState::Power(0))
@@ -144,7 +147,7 @@ impl MapIteratorState {
             Self::next_from_power_banks(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_power_banks(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.walls.is_empty() {
             Some(MapIteratorState::Walls(0))
@@ -152,7 +155,7 @@ impl MapIteratorState {
             Self::next_from_walls(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_walls(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.portals.is_empty() {
             Some(MapIteratorState::Portals(0))
@@ -160,7 +163,7 @@ impl MapIteratorState {
             Self::next_from_portals(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_portals(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.sources.is_empty() {
             Some(MapIteratorState::Sources(0))
@@ -168,7 +171,7 @@ impl MapIteratorState {
             Self::next_from_sources(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_sources(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.minerals.is_empty() {
             Some(MapIteratorState::Minerals(0))
@@ -176,7 +179,7 @@ impl MapIteratorState {
             Self::next_from_minerals(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_minerals(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.controllers.is_empty() {
             Some(MapIteratorState::Controllers(0))
@@ -184,7 +187,7 @@ impl MapIteratorState {
             Self::next_from_controllers(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_controllers(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.keeper_lairs.is_empty() {
             Some(MapIteratorState::KeeperLairs(0))
@@ -192,7 +195,7 @@ impl MapIteratorState {
             Self::next_from_keeper_lairs(view)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn next_from_keeper_lairs(view: &RoomMapViewUpdate) -> Option<MapIteratorState> {
         if !view.users_objects.is_empty() {
             let mut value = None;
@@ -212,6 +215,7 @@ impl MapIteratorState {
 
 /// Logic put into separate function because it's useful both when creating an iterator
 /// and when advancing that iterator.
+#[inline(always)]
 fn find_next_detail_view_room<'a>(
     data: &Ref<'a, MapCacheData>,
     start_room_name: RoomName,
@@ -271,6 +275,7 @@ enum ConstructedViewIteratorState<'a> {
 impl<'a> Iterator for ConstructedViewIterator<'a> {
     type Item = Primitive<'static>;
 
+    #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         let mut next_state = None;
 
@@ -595,6 +600,7 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
     }
 }
 
+#[inline(always)]
 pub fn render<'a>(
     id: widget::Id,
     view_rect: Rect,
