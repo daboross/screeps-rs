@@ -45,7 +45,7 @@ impl App {
         let renderer =
             conrod::backend::glium::Renderer::new(&window).expect("expected loading conrod glium renderer to succeed.");
         let image_map = conrod::image::Map::new();
-        let ids = layout::Ids::new(ui.widget_id_generator());
+        let ids = layout::Ids::new(&mut ui.widget_id_generator());
 
         App {
             ui: ui,

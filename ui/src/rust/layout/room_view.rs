@@ -9,7 +9,8 @@ use network::{self, SelectedRooms};
 use rendering::MapViewOffset;
 
 use app::AppCell;
-use layout::{frame, left_panel_available, AdditionalRender, GraphicsState, PanelStates};
+use super::{frame, AdditionalRender, GraphicsState};
+use super::left_panel::{left_panel_available, PanelStates};
 use self::room_view_widget::ScrollableRoomView;
 
 const ZOOM_MODIFIER: f64 = 1.0 / 500.0;
@@ -17,14 +18,14 @@ const MIN_ZOOM: f64 = 0.1;
 const MAX_ZOOM: f64 = 10.0;
 
 #[derive(Debug)]
-pub struct RoomViewState<T: network::ScreepsConnection = network::ThreadedHandler> {
-    network: T,
+pub struct RoomViewState {
+    network: network::ThreadedHandler,
     scroll: ScrollState,
     panels: PanelStates,
 }
 
-impl<T: network::ScreepsConnection> RoomViewState<T> {
-    pub fn new(network: T) -> Self {
+impl RoomViewState {
+    pub fn new(network: network::ThreadedHandler) -> Self {
         RoomViewState {
             network: network,
             scroll: ScrollState::default(),
@@ -32,8 +33,26 @@ impl<T: network::ScreepsConnection> RoomViewState<T> {
         }
     }
 
-    pub fn into_network(self) -> T {
+    pub fn into_network(self) -> network::ThreadedHandler {
         self.network
+    }
+}
+
+pub struct RoomViewIds {
+    username_gcl_header: Id,
+    display: Id,
+    scroll_widget: Id,
+    shard_dropdown: Id,
+}
+
+impl RoomViewIds {
+    pub fn new(gen: &mut id::Generator) -> Self {
+        RoomViewIds {
+            username_gcl_header: gen.next(),
+            display: gen.next(),
+            scroll_widget: gen.next(),
+            shard_dropdown: gen.next(),
+        }
     }
 }
 
@@ -51,22 +70,24 @@ pub fn create_ui(
 
     let body = Canvas::new().color(color::TRANSPARENT).border(0.0);
 
-    frame(ui, ids, ids.body, body);
+    frame(ui, ids, ids.root.body, body);
 
-    left_panel_available(ui, ids, &mut state.panels, update);
+    let left_open = left_panel_available(ui, ids, &mut state.panels, update);
+
+    if left_open {}
 
     // scrolling
     let scroll_update = ScrollableRoomView::new()
-        .wh(ui.wh_of(ids.body).unwrap())
-        .middle_of(ids.body)
-        .set(ids.room_scroll_widget, ui);
+        .wh(ui.wh_of(ids.root.body).unwrap())
+        .middle_of(ids.root.body)
+        .set(ids.room_view.scroll_widget, ui);
 
     // display rect
-    Rectangle::fill(ui.wh_of(ids.body).unwrap())
+    Rectangle::fill(ui.wh_of(ids.root.body).unwrap())
         .color(color::TRANSPARENT)
-        .middle_of(ids.body)
-        .graphics_for(ids.room_scroll_widget)
-        .set(ids.room_display, ui);
+        .middle_of(ids.root.body)
+        .graphics_for(ids.room_view.scroll_widget)
+        .set(ids.room_view.display, ui);
 
     let mut bail = false;
 
@@ -85,11 +106,11 @@ pub fn create_ui(
                 .right_justify()
                 .no_line_wrap()
                 // position
-                .mid_right_with_margin_on(ids.header, 10.0)
-                .set(ids.username_gcl_header, ui);
+                .mid_right_with_margin_on(ids.root.header, 10.0)
+                .set(ids.room_view.username_gcl_header, ui);
         }
 
-        let view_rect = ui.rect_of(ids.room_display)
+        let view_rect = ui.rect_of(ids.room_view.display)
             .expect("expected room_display to have a rect");
 
         if let Some(update) = scroll_update {
@@ -146,7 +167,7 @@ pub fn create_ui(
         let rooms_to_view = SelectedRooms::new(initial_room..(initial_room + (count_x, count_y)));
         let offset = MapViewOffset::new(extra_scroll_x, extra_scroll_y, room_size);
 
-        *app.additional_rendering = Some(AdditionalRender::map_view(ids.body, rooms_to_view, room_data, offset));
+        *app.additional_rendering = Some(AdditionalRender::map_view(ids.root.body, rooms_to_view, room_data, offset));
     }
 
     if bail {

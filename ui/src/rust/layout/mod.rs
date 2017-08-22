@@ -1,40 +1,25 @@
 mod login_screen;
 mod room_view;
+mod left_panel;
 
 use std::default::Default;
 use std::mem;
 
-use conrod::{self, color, Borderable, Colorable, Labelable, Positionable, Sizeable, Widget};
+use conrod::{self, color, Borderable, Colorable, Widget};
 use conrod::widget::*;
+use conrod::widget::id;
 
 use app::AppCell;
 use network;
+use rendering::AdditionalRender;
 
 pub use self::login_screen::LoginScreenState;
 pub use self::room_view::RoomViewState;
-pub use rendering::AdditionalRender;
 
 const HEADER_HEIGHT: conrod::Scalar = 30.0;
 
 pub const BACKGROUND_RGB: [f32; 3] = [0.0625, 0.46875, 0.3125];
 pub const BACKGROUND: conrod::Color = conrod::Color::Rgba(BACKGROUND_RGB[0], BACKGROUND_RGB[1], BACKGROUND_RGB[2], 1.0);
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum MenuState {
-    Open,
-    Closed,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
-pub struct PanelStates {
-    left: MenuState,
-}
-
-impl Default for MenuState {
-    fn default() -> Self {
-        MenuState::Closed
-    }
-}
 
 #[derive(Debug)]
 pub enum GraphicsState {
@@ -83,83 +68,6 @@ pub fn create_ui(app: &mut AppCell, state: &mut GraphicsState) {
     }
 }
 
-fn left_panel_available(
-    ui: &mut conrod::UiCell,
-    ids: &Ids,
-    state: &mut PanelStates,
-    update: &mut Option<GraphicsState>,
-) {
-    let left_toggle_clicks = Button::new()
-        // style
-        .color(color::DARK_CHARCOAL)
-        .border(0.0)
-        .w_h(100.0, HEADER_HEIGHT)
-        // label
-        .label("Screeps")
-        .small_font(&ui)
-        .left_justify_label()
-        .label_color(color::WHITE)
-        // place
-        .parent(ids.header)
-        .top_left_of(ids.header)
-        .set(ids.left_panel_toggle, ui)
-        // now TimesClicked(u16)
-        .0;
-
-    // left panel
-    match state.left {
-        MenuState::Open => {
-            left_panel_panel_open(ui, ids, update);
-
-            if left_toggle_clicks % 2 == 1 ||
-                left_toggle_clicks == 0 &&
-                    ui.global_input()
-                        .current
-                        .mouse
-                        .buttons
-                        .pressed()
-                        .next()
-                        .is_some() &&
-                    ui.global_input()
-                        .current
-                        .widget_capturing_mouse
-                        .or_else(|| ui.global_input().current.widget_under_mouse)
-                        .map(|capturing| {
-                            capturing != ids.left_panel_toggle &&
-                                !ui.widget_graph().does_recursive_edge_exist(
-                                    ids.left_panel_canvas,
-                                    capturing,
-                                    |_| true,
-                                ) &&
-                                !ui.widget_graph()
-                                    .does_recursive_edge_exist(ids.left_panel_toggle, capturing, |_| true)
-                        })
-                        .unwrap_or(true)
-            {
-                state.left = MenuState::Closed;
-            }
-        }
-        MenuState::Closed => if left_toggle_clicks % 2 == 1 {
-            state.left = MenuState::Open;
-        },
-    }
-}
-
-fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut Option<GraphicsState>) {
-    Canvas::new()
-        // style
-        .color(color::DARK_CHARCOAL)
-        .border(0.0)
-        .w_h(300.0, ui.window_dim()[1] - HEADER_HEIGHT)
-        // behavior
-        .scroll_kids_vertically()
-        // place
-        .floating(true)
-        .mid_left_of(ids.root)
-        .down_from(ids.left_panel_toggle, 0.0)
-        .set(ids.left_panel_canvas, ui);
-}
-
 fn frame(ui: &mut conrod::UiCell, ids: &Ids, body_id: Id, body: Canvas) {
     let header = Canvas::new()
         .color(color::DARK_CHARCOAL)
@@ -169,39 +77,39 @@ fn frame(ui: &mut conrod::UiCell, ids: &Ids, body_id: Id, body: Canvas) {
     Canvas::new()
         .color(BACKGROUND)
         .border(0.0)
-        .flow_down(&[(ids.header, header), (body_id, body)])
-        .set(ids.root, ui);
+        .flow_down(&[(ids.root.header, header), (body_id, body)])
+        .set(ids.root.root, ui);
 }
 
-widget_ids! {
-    pub struct Ids {
-        // Root IDs
-        root,
-        header,
-        body,
+pub struct RootIds {
+    root: Id,
+    header: Id,
+    body: Id,
+}
+impl RootIds {
+    pub fn new(gen: &mut id::Generator) -> Self {
+        RootIds {
+            root: gen.next(),
+            header: gen.next(),
+            body: gen.next(),
+        }
+    }
+}
 
-        // Main screen
-        left_panel_toggle,
-        left_panel_canvas,
+pub struct Ids {
+    root: RootIds,
+    left_panel: left_panel::LeftPanelIds,
+    login: login_screen::LoginIds,
+    room_view: room_view::RoomViewIds,
+}
 
-        username_gcl_header,
-        room_display,
-        room_scroll_widget,
-
-        // Login screen
-        login_canvas,
-        login_header_canvas,
-
-        login_username_canvas,
-        login_username_textbox,
-        login_username_label,
-
-        login_password_canvas,
-        login_password_textbox,
-        login_password_label,
-
-        login_submit_canvas,
-        login_exit_button,
-        login_submit_button,
+impl Ids {
+    pub fn new(gen: &mut id::Generator) -> Self {
+        Ids {
+            root: RootIds::new(gen),
+            left_panel: left_panel::LeftPanelIds::new(gen),
+            login: login_screen::LoginIds::new(gen),
+            room_view: room_view::RoomViewIds::new(gen),
+        }
     }
 }
