@@ -1,6 +1,6 @@
 use std::default::Default;
 
-use conrod::{color, Borderable, Colorable, Positionable, Rect, Sizeable, Widget};
+use conrod::{color, Borderable, Colorable, Positionable, Rect, Sizeable, Widget, Labelable};
 use conrod::widget::*;
 
 use screeps_api;
@@ -22,6 +22,7 @@ pub struct RoomViewState {
     network: network::ThreadedHandler,
     scroll: ScrollState,
     panels: PanelStates,
+    shard: Option<Option<String>>,
 }
 
 impl RoomViewState {
@@ -30,6 +31,7 @@ impl RoomViewState {
             network: network,
             scroll: ScrollState::default(),
             panels: PanelStates::default(),
+            shard: None,
         }
     }
 
@@ -74,8 +76,6 @@ pub fn create_ui(
 
     let left_open = left_panel_available(ui, ids, &mut state.panels, update);
 
-    if left_open {}
-
     // scrolling
     let scroll_update = ScrollableRoomView::new()
         .wh(ui.wh_of(ids.root.body).unwrap())
@@ -99,6 +99,26 @@ pub fn create_ui(
                 warn!("network error occurred: {}", other);
             }
         });
+
+        if left_open {
+            let shard_list = net.shard_list();
+            match shard_list {
+                Some(Some(shards)) => {
+                    DropDownList::new(shards, None)
+                        .parent(ids.left_panel.open_panel_canvas)
+                        .top_left_of(ids.left_panel.open_panel_canvas)
+                        .scrollbar_on_top()
+                        .left_justify_label()
+                        .max_visible_height(150f64)
+                        .small_font(ui)
+                        .set(ids.room_view.shard_dropdown, ui);
+                }
+                Some(None) => {}
+                None => {}
+            }
+        }
+
+
         if let Some(info) = net.my_info() {
             Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))
                 // style

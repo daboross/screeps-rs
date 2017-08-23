@@ -12,7 +12,7 @@ pub enum MenuState {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
-pub(super) struct PanelStates {
+pub struct PanelStates {
     pub left: MenuState,
 }
 
@@ -23,8 +23,8 @@ impl Default for MenuState {
 }
 
 pub struct LeftPanelIds {
-    panel_toggle: Id,
-    open_panel_canvas: Id,
+    pub panel_toggle: Id,
+    pub open_panel_canvas: Id,
 }
 
 impl LeftPanelIds {
@@ -36,7 +36,7 @@ impl LeftPanelIds {
     }
 }
 
-pub(super) fn left_panel_available(
+pub fn left_panel_available(
     ui: &mut conrod::UiCell,
     ids: &Ids,
     state: &mut PanelStates,
@@ -105,7 +105,7 @@ pub(super) fn left_panel_available(
     }
 }
 
-pub(super) fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut Option<GraphicsState>) {
+pub fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut Option<GraphicsState>) {
     Canvas::new()
         // style
         .color(color::DARK_CHARCOAL)
