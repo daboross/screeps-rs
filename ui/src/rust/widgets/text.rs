@@ -209,9 +209,9 @@ pub mod text_box {
 
     impl<'a> Borderable for TextBox<'a> {
         builder_methods!{
-        border { style.border = Some(Scalar) }
-        border_color { style.border_color = Some(Color) }
-    }
+            border { style.border = Some(Scalar) }
+            border_color { style.border_color = Some(Color) }
+        }
     }
 
     impl<'a> Colorable for TextBox<'a> {
@@ -683,9 +683,7 @@ pub mod text_edit {
             // - Key presses for cursor movement.
             'events: for widget_event in ui.widget_input(id).events() {
                 match widget_event {
-
                     event::Widget::Press(press) => match press.button {
-
                         // If the left mouse button was pressed, place a `Cursor` with the starting
                         // index at the mouse position.
                         event::Button::Mouse(input::MouseButton::Left, rel_xy) => {
@@ -708,7 +706,6 @@ pub mod text_edit {
 
                         // Check for control keys.
                         event::Button::Keyboard(key) => match key {
-
                             // If `Cursor::Idx`, remove the `char` behind the cursor.
                             // If `Cursor::Selection`, remove the selected text.
                             input::Key::Backspace | input::Key::Delete => {
@@ -946,7 +943,6 @@ pub mod text_edit {
                         },
 
                         _ => (),
-
                     },
 
                     event::Widget::Release(release) => {

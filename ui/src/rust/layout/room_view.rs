@@ -1,6 +1,6 @@
 use std::default::Default;
 
-use conrod::{color, Borderable, Colorable, Positionable, Rect, Sizeable, Widget, Labelable};
+use conrod::{color, Borderable, Colorable, Positionable, Rect, Sizeable, Widget};
 use conrod::widget::*;
 
 use screeps_api;
@@ -104,16 +104,26 @@ pub fn create_ui(
             let shard_list = net.shard_list();
             match shard_list {
                 Some(Some(shards)) => {
-                    DropDownList::new(shards, None)
-                        .parent(ids.left_panel.open_panel_canvas)
+                    let mut text = String::new();
+                    for shard_info in shards {
+                        use std::fmt::Write;
+                        write!(text, "{}\n", shard_info.as_ref()).expect("writing plain string to plain string");
+                    }
+                    Text::new(&text)
+                        .font_size(ui.theme.font_size_small)
+                        .center_justify()
+                        .no_line_wrap()
                         .top_left_of(ids.left_panel.open_panel_canvas)
-                        .scrollbar_on_top()
-                        .left_justify_label()
-                        .max_visible_height(150f64)
-                        .small_font(ui)
                         .set(ids.room_view.shard_dropdown, ui);
                 }
-                Some(None) => {}
+                Some(None) => {
+                    Text::new("<no shards>")
+                        .font_size(ui.theme.font_size_small)
+                        .center_justify()
+                        .no_line_wrap()
+                        .top_left_of(ids.left_panel.open_panel_canvas)
+                        .set(ids.room_view.shard_dropdown, ui);
+                }
                 None => {}
             }
         }
