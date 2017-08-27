@@ -3,8 +3,9 @@ use conrod::widget::*;
 
 use time;
 
-use network::{self, ConnectionSettings, Request, ScreepsConnection};
+use screeps_rs_network::{self, ConnectionSettings, Request, ScreepsConnection};
 use widgets::text_box::TextBox;
+use NetworkHandler;
 
 use app::AppCell;
 use layout::{frame, GraphicsState, HEADER_HEIGHT};
@@ -19,21 +20,21 @@ const LOGIN_LOWER_SECTION_HEIGHT: conrod::Scalar = (LOGIN_HEIGHT - HEADER_HEIGHT
 
 #[derive(Default)] // the UI username and password boxes are empty by default.
 pub struct LoginScreenState {
-    network: Option<network::ThreadedHandler>,
+    network: Option<NetworkHandler>,
     pending_since: Option<time::Tm>,
     username: String,
     password: String,
 }
 
 impl LoginScreenState {
-    pub fn new(network: network::ThreadedHandler) -> Self {
+    pub fn new(network: NetworkHandler) -> Self {
         LoginScreenState {
             network: Some(network),
             ..LoginScreenState::default()
         }
     }
 
-    pub fn into_network(self) -> Option<network::ThreadedHandler> {
+    pub fn into_network(self) -> Option<NetworkHandler> {
         self.network
     }
 }
@@ -87,7 +88,7 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         });
     }
 
-    if app.net_cache.login_state() == network::LoginState::LoggedIn {
+    if app.net_cache.login_state() == screeps_rs_network::LoginState::LoggedIn {
         if let Some(network) = state.network.take() {
             debug!("Logged in, moving out.");
             let mut new_state = RoomViewState::new(network);
@@ -274,8 +275,8 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
             None => {
                 debug!("sending login request to new network.");
 
-                let mut network = network::ThreadedHandler::new(settings, (*notify).clone());
-                network.send(network::Request::login());
+                let mut network = NetworkHandler::new(settings, (*notify).clone());
+                network.send(screeps_rs_network::Request::login());
                 state.network = Some(network);
                 state.pending_since = Some(time::now_utc());
             }

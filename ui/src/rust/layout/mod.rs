@@ -10,7 +10,7 @@ use conrod::widget::*;
 use conrod::widget::id;
 
 use app::AppCell;
-use network;
+use screeps_rs_network;
 use rendering::AdditionalRender;
 
 pub use self::login_screen::LoginScreenState;
@@ -52,7 +52,7 @@ pub fn create_ui(app: &mut AppCell, state: &mut GraphicsState) {
 
     match result {
         Ok(()) => (),
-        Err(network::NotLoggedIn) => {
+        Err(screeps_rs_network::NotLoggedIn) => {
             let mut temp_state = GraphicsState::login_screen();
             // leave the UI in a reasonable state if we error out in the next few lines before re-swapping.
             mem::swap(state, &mut temp_state);

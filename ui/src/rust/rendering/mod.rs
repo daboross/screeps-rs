@@ -4,7 +4,7 @@ use std::cell::Ref;
 use conrod::widget;
 use conrod::render::{Primitive, PrimitiveWalker};
 
-use network::{MapCache, MapCacheData, SelectedRooms};
+use screeps_rs_network::{MapCache, MapCacheData, SelectedRooms};
 
 pub mod constants;
 mod map_view;

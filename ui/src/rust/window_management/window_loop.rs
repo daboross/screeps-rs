@@ -1,11 +1,11 @@
 use glium::Surface;
 use app::{App, AppCell};
-use events::Event;
+use super::glutin_glue::{Event, EventLoop};
 
-use {conrod, events, glutin, layout};
+use {conrod, glutin, layout};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
-    let mut events = events::EventLoop::new(events);
+    let mut events = EventLoop::new(events);
 
     let mut state = layout::GraphicsState::login_screen();
 

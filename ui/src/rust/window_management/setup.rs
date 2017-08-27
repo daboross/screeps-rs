@@ -1,4 +1,3 @@
-
 use std::io;
 
 pub use app::App;
@@ -6,7 +5,7 @@ pub use app::App;
 use {chrono, fern, glium, glutin, log, rusttype};
 
 fn akashi_font() -> rusttype::Font<'static> {
-    let font_data = include_bytes!("../ttf/Akashi.ttf");
+    let font_data = include_bytes!("../../ttf/Akashi.ttf");
     let collection = rusttype::FontCollection::from_bytes(font_data as &[u8]);
 
     collection

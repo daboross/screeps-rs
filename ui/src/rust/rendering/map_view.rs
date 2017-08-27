@@ -8,7 +8,7 @@ use screeps_api::endpoints::room_terrain::{TerrainGrid, TerrainType};
 use screeps_api::websocket::RoomMapViewUpdate;
 use screeps_api::websocket::types::room::objects::KnownRoomObject;
 
-use network::{MapCacheData, SelectedRooms};
+use screeps_rs_network::{MapCacheData, SelectedRooms};
 
 use super::constants::*;
 

@@ -5,7 +5,8 @@ use conrod::widget::*;
 
 use screeps_api;
 
-use network::{self, SelectedRooms};
+use NetworkHandler;
+use screeps_rs_network::{self, SelectedRooms};
 use rendering::MapViewOffset;
 
 use app::AppCell;
@@ -19,14 +20,14 @@ const MAX_ZOOM: f64 = 10.0;
 
 #[derive(Debug)]
 pub struct RoomViewState {
-    network: network::ThreadedHandler,
+    network: NetworkHandler,
     scroll: ScrollState,
     panels: PanelStates,
     shard: Option<Option<String>>,
 }
 
 impl RoomViewState {
-    pub fn new(network: network::ThreadedHandler) -> Self {
+    pub fn new(network: NetworkHandler) -> Self {
         RoomViewState {
             network: network,
             scroll: ScrollState::default(),
@@ -35,7 +36,7 @@ impl RoomViewState {
         }
     }
 
-    pub fn into_network(self) -> network::ThreadedHandler {
+    pub fn into_network(self) -> NetworkHandler {
         self.network
     }
 }
@@ -62,7 +63,7 @@ pub fn create_ui(
     app: &mut AppCell,
     state: &mut RoomViewState,
     update: &mut Option<GraphicsState>,
-) -> Result<(), network::NotLoggedIn> {
+) -> Result<(), screeps_rs_network::NotLoggedIn> {
     let AppCell {
         ref mut ui,
         ref mut net_cache,
@@ -93,7 +94,7 @@ pub fn create_ui(
 
     {
         let mut net = net_cache.align(&mut state.network, |err| match err {
-            network::ErrorEvent::NotLoggedIn => bail = true,
+            screeps_rs_network::ErrorEvent::NotLoggedIn => bail = true,
             other => {
                 // TODO: do a "notification bar" side thing in the app with these.
                 warn!("network error occurred: {}", other);
@@ -201,7 +202,7 @@ pub fn create_ui(
     }
 
     if bail {
-        Err(network::NotLoggedIn)
+        Err(screeps_rs_network::NotLoggedIn)
     } else {
         Ok(())
     }

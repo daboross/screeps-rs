@@ -24,26 +24,25 @@ extern crate fern;
 extern crate log;
 
 pub mod app;
-pub mod setup;
-pub mod events;
-pub mod window_loop;
 pub mod layout;
 pub mod rendering;
-pub mod network;
+pub mod network_integration;
+pub mod window_management;
 pub mod widgets;
 
 pub use app::App;
+pub use network_integration::NetworkHandler;
 
 pub fn main<T, I>(verbose_logging: bool, debug_modules: I)
 where
     T: AsRef<str>,
     I: IntoIterator<Item = T>,
 {
-    setup::init_logger(verbose_logging, debug_modules);
+    window_management::setup::init_logger(verbose_logging, debug_modules);
 
-    let (events_loop, app) = setup::init_window();
+    let (events_loop, app) = window_management::setup::init_window();
 
-    window_loop::main_window_loop(events_loop, app);
+    window_management::window_loop::main_window_loop(events_loop, app);
 }
 
 use conrod::{widget, Theme};

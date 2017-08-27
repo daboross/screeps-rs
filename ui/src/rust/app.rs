@@ -1,9 +1,11 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use screeps_rs_network::MemCache;
+
 use {conrod, glium, glutin, layout, rendering};
 
-use network::{GlutinNotify, MemCache};
+use network_integration::GlutinNotify;
 
 pub struct App {
     pub ui: conrod::Ui,
