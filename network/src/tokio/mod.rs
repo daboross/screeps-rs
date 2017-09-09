@@ -72,12 +72,16 @@ impl HandlerHandles {
 
     fn send(&mut self, request: Request) -> Result<(), Request> {
         match request.into() {
-            GenericRequest::Http(r) => self.http_send.send(r).map_err(|e| e.into_inner().into()),
-            GenericRequest::Websocket(r) => self.ws_send.send(r).map_err(|e| e.into_inner().into()),
+            GenericRequest::Http(r) => self.http_send
+                .unbounded_send(r)
+                .map_err(|e| e.into_inner().into()),
+            GenericRequest::Websocket(r) => self.ws_send
+                .unbounded_send(r)
+                .map_err(|e| e.into_inner().into()),
             GenericRequest::Both(hr, wr) => self.http_send
-                .send(hr)
+                .unbounded_send(hr)
                 .map_err(|e| e.into_inner().into())
-                .and_then(|()| self.ws_send.send(wr).map_err(|e| e.into_inner().into())),
+                .and_then(|()| self.ws_send.unbounded_send(wr).map_err(|e| e.into_inner().into())),
         }
     }
 }

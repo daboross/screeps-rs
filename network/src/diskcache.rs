@@ -99,7 +99,7 @@ impl Cache {
         let pool = self.access_pool.clone();
         let db = self.database.clone();
         // run once on app startup, then once every hour.
-        let stream = stream::once(Ok(())).merge(reactor::Interval::new(Duration::from_secs(60 * 60), handle)?);
+        let stream = stream::once(Ok(())).select(reactor::Interval::new(Duration::from_secs(60 * 60), handle)?);
 
         handle.spawn(
             stream

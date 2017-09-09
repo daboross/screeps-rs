@@ -139,11 +139,10 @@ where
 
                 // subscribe to rooms we aren't subscribed to already.
                 Box::new(
-                    stream::iter(
+                    stream::iter_ok(
                         rooms
                             .into_iter()
-                            .filter(move |room_name| !room_set.borrow().contains(&room_name))
-                            .map(|v| Ok(v)),
+                            .filter(move |room_name| !room_set.borrow().contains(&room_name)),
                     ).fold(self, |executor, room_name| {
                         let shard = executor.settings.shard.clone();
                         executor.subscribe(Channel::room_map_view(room_name, shard))
@@ -158,13 +157,10 @@ where
                                 .filter(|room_name| !rooms.contains(room_name))
                                 .collect::<Vec<RoomName>>();
 
-                            stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v))).fold(
-                                executor,
-                                |executor, room_name| {
-                                    let shard = executor.settings.shard.clone();
-                                    executor.unsubscribe(Channel::room_map_view(room_name, shard))
-                                },
-                            )
+                            stream::iter_ok(unneeded_rooms.into_iter()).fold(executor, |executor, room_name| {
+                                let shard = executor.settings.shard.clone();
+                                executor.unsubscribe(Channel::room_map_view(room_name, shard))
+                            })
                         }),
                 ) as Box<Future<Item = Self, Error = WsExit>>
             }
@@ -224,7 +220,7 @@ where
 
                 // and unsubscribe from rooms we no longer need data for.
                 let unsubscribe_map_views = move |exec: Self, unneeded_rooms: Vec<RoomName>, old_shard| {
-                    stream::iter(unneeded_rooms.into_iter().map(|v| Ok(v))).fold(
+                    stream::iter_ok(unneeded_rooms.into_iter()).fold(
                         (exec, old_shard),
                         |(executor, old_shard), room_name| {
                             let shard = executor.settings.shard.clone();
@@ -712,7 +708,9 @@ mod read {
         }
 
         fn send_response(&self, response: OwnedMessage) -> Result<(), ExitNow> {
-            UnboundedSender::send(&self.raw_send_sender, (self.connection_id, response)).map_err(|_| ExitNow)?;
+            self.raw_send_sender
+                .unbounded_send((self.connection_id, response))
+                .map_err(|_| ExitNow)?;
 
             Ok(())
         }
