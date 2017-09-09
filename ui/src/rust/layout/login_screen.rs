@@ -1,16 +1,16 @@
+use std::collections::VecDeque;
+
 use conrod::{self, color, Borderable, Colorable, Labelable, Positionable, Sizeable, Widget};
 use conrod::widget::*;
 
 use time;
 
-use screeps_rs_network::{self, ConnectionSettings, Request, ScreepsConnection};
+use screeps_rs_network::{self, ConnectionSettings};
 use widgets::text_box::TextBox;
-use NetworkHandler;
+use ui_state::{Event as UiEvent, LoginScreenState};
 
 use app::AppCell;
-use layout::{frame, GraphicsState, HEADER_HEIGHT};
-use layout::room_view::RoomViewState;
-
+use layout::{frame, HEADER_HEIGHT};
 const LOGIN_WIDTH: conrod::Scalar = 300.0;
 const LOGIN_HEIGHT: conrod::Scalar = 200.0;
 
@@ -18,36 +18,6 @@ const LOGIN_PADDING: conrod::Scalar = 10.0;
 
 const LOGIN_LOWER_SECTION_HEIGHT: conrod::Scalar = (LOGIN_HEIGHT - HEADER_HEIGHT) / 3.0;
 
-#[derive(Default)] // the UI username and password boxes are empty by default.
-pub struct LoginScreenState {
-    network: Option<NetworkHandler>,
-    pending_since: Option<time::Tm>,
-    username: String,
-    password: String,
-}
-
-impl LoginScreenState {
-    pub fn new(network: NetworkHandler) -> Self {
-        LoginScreenState {
-            network: Some(network),
-            ..LoginScreenState::default()
-        }
-    }
-
-    pub fn into_network(self) -> Option<NetworkHandler> {
-        self.network
-    }
-}
-
-impl ::std::fmt::Debug for LoginScreenState {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        fmt.debug_struct("LoginScreenState")
-            .field("network", &self.network)
-            .field("username", &self.username)
-            .field("password", &"<redacted>")
-            .finish()
-    }
-}
 
 pub struct LoginIds {
     root: Id,
@@ -81,29 +51,14 @@ impl LoginIds {
     }
 }
 
-pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut Option<GraphicsState>) {
-    if let Some(ref mut network) = state.network {
-        app.net_cache.align(network, |event| {
-            warn!("Network error: {}", event);
-        });
-    }
-
+pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDeque<UiEvent>) {
     if app.net_cache.login_state() == screeps_rs_network::LoginState::LoggedIn {
-        if let Some(network) = state.network.take() {
-            debug!("Logged in, moving out.");
-            let mut new_state = RoomViewState::new(network);
-            let mut temp_secondary_update = None;
-            super::room_view::create_ui(app, &mut new_state, &mut temp_secondary_update)
-                .expect("Just logged in, yet login error occurs?");
-            *update = Some(temp_secondary_update.unwrap_or_else(|| GraphicsState::RoomView(new_state)));
-            return;
-        }
+        update.push_front(UiEvent::LoggedInMapView);
     }
 
     let AppCell {
         ref mut ui,
         ref ids,
-        ref notify,
         ..
     } = *app;
 
@@ -144,8 +99,9 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         // set
         .set(ids.login.root, ui);
 
-    fn textbox_field(
-        text: &mut String,
+    fn textbox_field<F: FnMut(String)>(
+        text: &str,
+        mut update: F,
         parent: Id,
         id: Id,
         width: conrod::Scalar,
@@ -163,22 +119,18 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
             .mid_right_with_margin_on(parent, 10.0)
             .set(id, ui);
 
-        let mut updated_string = None;
         let mut enter_pressed = false;
 
         for event in events.into_iter() {
             match event {
                 TextBoxEvent::Update(s) => {
-                    updated_string = Some(s);
+                    update(s);
                 }
                 TextBoxEvent::Enter => {
                     enter_pressed = true;
                     break;
                 }
             }
-        }
-        if let Some(s) = updated_string {
-            *text = s;
         }
         enter_pressed
     }
@@ -211,7 +163,8 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
 
     // Username field
     let username_enter_pressed = textbox_field(
-        &mut state.username,
+        &state.username,
+        |s| update.push_front(UiEvent::LoginUsername(s)),
         ids.login.username_canvas,
         ids.login.username_textbox,
         LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
@@ -221,7 +174,8 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
 
     // Password field
     let password_enter_pressed = textbox_field(
-        &mut state.password,
+        &state.password,
+        |s| update.push_front(UiEvent::LoginPassword(s)),
         ids.login.password_canvas,
         ids.login.password_textbox,
         LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
@@ -260,26 +214,17 @@ pub fn create_ui(app: &mut AppCell, state: &mut LoginScreenState, update: &mut O
         .was_clicked();
 
     if exit_pressed {
-        *update = Some(GraphicsState::Exit);
+        update.push_front(UiEvent::Exit);
     } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0 &&
         state.password.len() > 0
     {
         // TODO: UI option for shard.
         let settings = ConnectionSettings::new(state.username.clone(), state.password.clone(), "shard0".to_owned());
-        match state.network {
-            Some(ref mut net) => {
-                debug!("sending login request to existing network.");
-                net.send(Request::change_settings(settings));
-                net.send(Request::login());
-            }
-            None => {
-                debug!("sending login request to new network.");
 
-                let mut network = NetworkHandler::new(settings, (*notify).clone());
-                network.send(screeps_rs_network::Request::login());
-                state.network = Some(network);
-                state.pending_since = Some(time::now_utc());
-            }
-        }
+        debug!("sending login request to existing network.");
+
+        app.net_cache.update_settings(settings);
+        app.net_cache.login();
+        update.push_front(UiEvent::LoginSubmitted(time::now_utc()));
     }
 }

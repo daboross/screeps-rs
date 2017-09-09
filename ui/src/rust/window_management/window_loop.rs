@@ -2,17 +2,17 @@ use glium::Surface;
 use app::{App, AppCell};
 use super::glutin_glue::{Event, EventLoop};
 
-use {conrod, glutin, layout};
+use {conrod, glutin, layout, ui_state};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
     let mut events = EventLoop::new(events);
 
-    let mut state = layout::GraphicsState::login_screen();
+    let mut state = ui_state::State::new();
 
     debug!("Starting event loop.");
 
     events.run_loop(|control, event| {
-        if let layout::GraphicsState::Exit = state {
+        if let ui_state::ScreenState::Exit = state.screen_state {
             info!("exiting.");
             control.exit();
             return;
@@ -69,6 +69,7 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                         ref mut ids,
                         ref mut renderer,
                         ref mut net_cache,
+                        ref mut network_handler,
                         ref notify,
                         ..
                     } = app;
@@ -82,6 +83,7 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                         ids,
                         renderer,
                         net_cache,
+                        network_handler,
                         &mut additional_render,
                         notify,
                     );

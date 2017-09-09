@@ -1,26 +1,10 @@
-use std::default::Default;
+use std::collections::VecDeque;
 
 use conrod::{self, color, Borderable, Colorable, Labelable, Positionable, Sizeable, Widget};
 use conrod::widget::*;
 
-use super::{GraphicsState, Ids, HEADER_HEIGHT};
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum MenuState {
-    Open,
-    Closed,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
-pub struct PanelStates {
-    pub left: MenuState,
-}
-
-impl Default for MenuState {
-    fn default() -> Self {
-        MenuState::Closed
-    }
-}
+use super::{Ids, HEADER_HEIGHT};
+use ui_state::{self, Event as UiEvent, MenuState};
 
 pub struct LeftPanelIds {
     pub panel_toggle: Id,
@@ -39,9 +23,9 @@ impl LeftPanelIds {
 pub fn left_panel_available(
     ui: &mut conrod::UiCell,
     ids: &Ids,
-    state: &mut PanelStates,
-    update: &mut Option<GraphicsState>,
-) -> bool {
+    state: &ui_state::PanelStates,
+    update: &mut VecDeque<UiEvent>,
+) {
     let left_toggle_clicks = Button::new()
         // style
         .color(color::DARK_CHARCOAL)
@@ -91,21 +75,16 @@ pub fn left_panel_available(
                         })
                         .unwrap_or(true)
             {
-                state.left = MenuState::Closed;
+                update.push_back(UiEvent::LeftMenuClosed);
             }
-
-            true
         }
-        MenuState::Closed => {
-            if left_toggle_clicks % 2 == 1 {
-                state.left = MenuState::Open;
-            }
-            false
-        }
+        MenuState::Closed => if left_toggle_clicks % 2 == 1 {
+            update.push_back(UiEvent::LeftMenuOpened);
+        },
     }
 }
 
-pub fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut Option<GraphicsState>) {
+pub fn left_panel_panel_open(ui: &mut conrod::UiCell, ids: &Ids, _update: &mut VecDeque<UiEvent>) {
     Canvas::new()
         // style
         .color(color::DARK_CHARCOAL)

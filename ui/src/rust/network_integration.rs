@@ -27,3 +27,4 @@ impl From<glutin::EventsLoopProxy> for GlutinNotify {
 
 
 pub type NetworkHandler = screeps_rs_network::TokioHandler<GlutinNotify>;
+pub type NetworkCache<'a> = screeps_rs_network::memcache::NetworkedMemCache<'a, NetworkHandler>;

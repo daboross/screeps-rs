@@ -75,6 +75,12 @@ impl<T> TimeoutValue<T> {
     fn get(&self) -> Option<&T> {
         self.value.as_ref().map(|tuple| &tuple.0)
     }
+
+    /// Resets the value to None.
+    fn reset(&mut self) {
+        self.value = None;
+        self.last_send = None;
+    }
 }
 
 #[derive(Default, Debug)]
@@ -219,6 +225,9 @@ impl MemCache {
         while let Some(evt) = handler.poll() {
             debug!("[cache] Got event {:?}", evt);
             if let Err(e) = self.event(evt) {
+                if let ErrorEvent::NotLoggedIn = e {
+                    self.login.reset();
+                }
                 error_callback(e);
             }
         }
@@ -233,6 +242,10 @@ impl MemCache {
 impl<'a, C: ScreepsConnection> NetworkedMemCache<'a, C> {
     pub fn login(&mut self) {
         self.handler.send(Request::login());
+    }
+
+    pub fn login_state(&self) -> LoginState {
+        self.cache.login_state()
     }
 
     pub fn update_settings(&mut self, settings: ConnectionSettings) {

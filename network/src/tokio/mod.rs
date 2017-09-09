@@ -87,7 +87,7 @@ impl HandlerHandles {
 }
 
 impl<N> Handler<N> {
-    /// Creates a new requests state, and starts an initial handler with a pending login request.
+    /// Creates a new handler, with the given settings and notify callback.
     pub fn new(settings: ConnectionSettings, notify: N) -> Self {
         Handler {
             settings: Arc::new(settings),

@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use screeps_rs_network::MemCache;
+use screeps_rs_network::{self, MemCache};
 
 use {conrod, glium, glutin, layout, rendering};
 
-use network_integration::GlutinNotify;
+use network_integration::{GlutinNotify, NetworkCache, NetworkHandler};
 
 pub struct App {
     pub ui: conrod::Ui,
@@ -14,6 +14,7 @@ pub struct App {
     pub ids: layout::Ids,
     pub renderer: conrod::backend::glium::Renderer,
     pub net_cache: MemCache,
+    pub network_handler: NetworkHandler,
     pub notify: GlutinNotify,
     /// Phantom data in order to allow adding any additional fields in the future.
     #[doc(hidden)]
@@ -26,7 +27,7 @@ pub struct AppCell<'a, 'b: 'a, 'c> {
     pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
     pub ids: &'a mut layout::Ids,
     pub renderer: &'a mut conrod::backend::glium::Renderer,
-    pub net_cache: &'a mut MemCache,
+    pub net_cache: NetworkCache<'a>,
     pub additional_rendering: &'c mut Option<rendering::AdditionalRender>,
     pub notify: &'a GlutinNotify,
     /// Phantom data in order to allow adding any additional fields in the future.
@@ -49,6 +50,8 @@ impl App {
         let image_map = conrod::image::Map::new();
         let ids = layout::Ids::new(&mut ui.widget_id_generator());
 
+        let notify = GlutinNotify::from(Arc::new(events.create_proxy()));
+
         App {
             ui: ui,
             display: window,
@@ -56,7 +59,11 @@ impl App {
             ids: ids,
             renderer: renderer,
             net_cache: MemCache::new(),
-            notify: GlutinNotify::from(Arc::new(events.create_proxy())),
+            network_handler: NetworkHandler::new(
+                screeps_rs_network::ConnectionSettings::new(String::new(), String::new(), None),
+                notify.clone(),
+            ),
+            notify: notify,
             _phantom: PhantomData,
         }
     }
@@ -70,6 +77,7 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
         ids: &'a mut layout::Ids,
         renderer: &'a mut conrod::backend::glium::Renderer,
         net_cache: &'a mut MemCache,
+        network_handler: &'a mut NetworkHandler,
         additional_rendering: &'c mut Option<rendering::AdditionalRender>,
         notify: &'a GlutinNotify,
     ) -> Self {
@@ -79,7 +87,10 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
             image_map: image_map,
             ids: ids,
             renderer: renderer,
-            net_cache: net_cache,
+            net_cache: net_cache.align(network_handler, |x| {
+                // TODO: this shouldn't be done here, but rather within the UI event code.
+                warn!("network error occurred: {}", x);
+            }),
             additional_rendering: additional_rendering,
             notify: notify,
             _phantom: PhantomData,

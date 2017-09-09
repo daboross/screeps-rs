@@ -2,70 +2,35 @@ mod login_screen;
 mod room_view;
 mod left_panel;
 
-use std::default::Default;
-use std::mem;
+use std::collections::VecDeque;
 
 use conrod::{self, color, Borderable, Colorable, Widget};
 use conrod::widget::*;
 use conrod::widget::id;
 
 use app::AppCell;
-use screeps_rs_network;
 use rendering::AdditionalRender;
-
-pub use self::login_screen::LoginScreenState;
-pub use self::room_view::RoomViewState;
+use ui_state::{ScreenState, State};
 
 const HEADER_HEIGHT: conrod::Scalar = 30.0;
 
 pub const BACKGROUND_RGB: [f32; 3] = [0.0625, 0.46875, 0.3125];
 pub const BACKGROUND: conrod::Color = conrod::Color::Rgba(BACKGROUND_RGB[0], BACKGROUND_RGB[1], BACKGROUND_RGB[2], 1.0);
 
-#[derive(Debug)]
-pub enum GraphicsState {
-    LoginScreen(LoginScreenState),
-    RoomView(RoomViewState),
-    Exit,
-}
+pub fn create_ui(app: &mut AppCell, state: &mut State) {
+    let mut update = VecDeque::new();
 
-impl GraphicsState {
-    pub fn login_screen() -> Self {
-        GraphicsState::LoginScreen(LoginScreenState::default())
-    }
-}
-
-pub fn create_ui(app: &mut AppCell, state: &mut GraphicsState) {
-    let mut update = None;
-
-    let result = match *state {
-        GraphicsState::LoginScreen(ref mut inner) => {
-            login_screen::create_ui(app, inner, &mut update);
-            Ok(())
+    match state.screen_state {
+        ScreenState::Login(ref login_state) => {
+            login_screen::create_ui(app, login_state, &mut update);
         }
-        GraphicsState::RoomView(ref mut inner) => room_view::create_ui(app, inner, &mut update),
-        GraphicsState::Exit => panic!("Should have exited."),
-    };
-
-    if let Some(inner) = update {
-        *state = inner;
-    }
-
-    match result {
-        Ok(()) => (),
-        Err(screeps_rs_network::NotLoggedIn) => {
-            let mut temp_state = GraphicsState::login_screen();
-            // leave the UI in a reasonable state if we error out in the next few lines before re-swapping.
-            mem::swap(state, &mut temp_state);
-            let new_state = match temp_state {
-                GraphicsState::LoginScreen(state) => GraphicsState::LoginScreen(state),
-                GraphicsState::RoomView(state) => {
-                    GraphicsState::LoginScreen(LoginScreenState::new(state.into_network()))
-                }
-                GraphicsState::Exit => GraphicsState::Exit,
-            };
-            *state = new_state;
+        ScreenState::Map(ref map_state) => {
+            room_view::create_ui(app, map_state, &mut update);
         }
+        ScreenState::Exit => {}
     }
+
+    state.transform(update.drain(..));
 }
 
 fn frame(ui: &mut conrod::UiCell, ids: &Ids, body_id: Id, body: Canvas) {
