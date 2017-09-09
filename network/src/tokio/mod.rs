@@ -81,7 +81,11 @@ impl HandlerHandles {
             GenericRequest::Both(hr, wr) => self.http_send
                 .unbounded_send(hr)
                 .map_err(|e| e.into_inner().into())
-                .and_then(|()| self.ws_send.unbounded_send(wr).map_err(|e| e.into_inner().into())),
+                .and_then(|()| {
+                    self.ws_send
+                        .unbounded_send(wr)
+                        .map_err(|e| e.into_inner().into())
+                }),
         }
     }
 }
