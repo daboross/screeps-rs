@@ -547,6 +547,12 @@ where
                                         Box::new(test_response(executor, connection)) as
                                             Box<Future<Item = _, Error = _>>
                                     }
+                                    parsing::SockjsMessage::Open => {
+                                        debug!("SockJS connection opened");
+                                        // Recursion here!
+                                        Box::new(test_response(executor, connection)) as
+                                            Box<Future<Item = _, Error = _>>
+                                    }
                                     other => {
                                         warn!(
                                             "received unexpected websocket message while \
