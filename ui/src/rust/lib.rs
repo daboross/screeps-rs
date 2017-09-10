@@ -46,5 +46,3 @@ where
 
     window_management::window_loop::main_window_loop(events_loop, app);
 }
-
-use conrod::{widget, Theme};

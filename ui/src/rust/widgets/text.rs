@@ -13,7 +13,7 @@ pub mod text_box {
     /// form of a `String`.
     ///
     /// It's reaction is triggered upon pressing of the `Enter`/`Return` key.
-    #[derive(WidgetCommon_)]
+    #[derive(WidgetCommon)]
     pub struct TextBox<'a> {
         #[conrod(common_builder)] common: widget::CommonBuilder,
         text: &'a str,
@@ -21,7 +21,7 @@ pub mod text_box {
     }
 
     /// Unique graphical styling for the TextBox.
-    #[derive(Copy, Clone, Debug, Default, PartialEq, WidgetStyle_)]
+    #[derive(Copy, Clone, Debug, Default, PartialEq, WidgetStyle)]
     pub struct Style {
         /// The length of the gap between the bounding rectangle's border and the edge of the text.
         #[conrod(default = "5.0")]
@@ -230,7 +230,7 @@ pub mod text_edit {
     ///
     /// By default the text is wrapped via the first whitespace before the line exceeds the
     /// `TextEdit`'s width, however a user may change this using the `.wrap_by_character` method.
-    #[derive(WidgetCommon_)]
+    #[derive(WidgetCommon)]
     pub struct TextEdit<'a> {
         #[conrod(common_builder)] common: widget::CommonBuilder,
         text: &'a str,
@@ -238,7 +238,7 @@ pub mod text_edit {
     }
 
     /// Unique graphical styling for the TextEdit.
-    #[derive(Copy, Clone, Debug, Default, PartialEq, WidgetStyle_)]
+    #[derive(Copy, Clone, Debug, Default, PartialEq, WidgetStyle)]
     pub struct Style {
         /// The color of the text (this includes cursor and selection color).
         #[conrod(default = "theme.shape_color")]

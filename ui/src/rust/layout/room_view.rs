@@ -216,7 +216,7 @@ mod room_view_widget {
         style: Style,
     }
 
-    #[derive(Copy, Clone, Debug, Default, PartialEq, WidgetStyle)]
+    #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub(super) struct Style {}
 
     pub(super) struct State {}
