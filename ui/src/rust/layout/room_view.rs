@@ -72,16 +72,16 @@ pub fn create_ui(app: &mut AppCell, state: &MapScreenState, mut update: &mut Vec
                     write!(text, "{}\n", shard_info.as_ref()).expect("writing plain string to plain string");
                 }
                 Text::new(&text)
-                    .font_size(ui.theme.font_size_small)
-                    .center_justify()
+                    .font_size(ui.theme.font_size_medium)
+                    .right_justify()
                     .no_line_wrap()
                     .top_left_of(ids.left_panel.open_panel_canvas)
                     .set(ids.room_view.shard_dropdown, ui);
             }
             Some(None) => {
                 Text::new("<no shards>")
-                    .font_size(ui.theme.font_size_small)
-                    .center_justify()
+                    .font_size(ui.theme.font_size_medium)
+                    .right_justify()
                     .no_line_wrap()
                     .top_left_of(ids.left_panel.open_panel_canvas)
                     .set(ids.room_view.shard_dropdown, ui);
