@@ -24,7 +24,7 @@ screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git", defaul
 # Caching
 time = "0.1"
 bincode = "0.8"
-rocksdb = "0.6"
+rocksdb = "0.8"
 app_dirs = "1.1"
 serde = "1.0"
 serde_json = "1.0"

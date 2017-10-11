@@ -3,6 +3,3 @@ members = [
     "network",
     "ui",
 ]
-
-[replace]
-"rusttype:0.2.1" = { git = "https://github.com/daboross/rusttype.git", branch = "possibly-fix-rasterizer-akashi-font" }
