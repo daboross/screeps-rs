@@ -215,8 +215,8 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
 
     if exit_pressed {
         update.push_front(UiEvent::Exit);
-    } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0 &&
-        state.password.len() > 0
+    } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0
+        && state.password.len() > 0
     {
         // TODO: UI option for shard.
         let settings = ConnectionSettings::new(state.username.clone(), state.password.clone(), "shard0".to_owned());

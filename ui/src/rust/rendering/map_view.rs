@@ -292,12 +292,12 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
 
                     let terrain_square_length = self.room_screen_size / 50.0;
 
-                    let x_pos = self.start_room_screen_pos.0 +
-                        self.room_screen_size *
-                            (*current_relative_room_x as f64 + ((*current_terrain_x as f64) / 50.0));
-                    let y_pos = self.start_room_screen_pos.1 +
-                        self.room_screen_size *
-                            (*current_relative_room_y as f64 + (((50 - *current_terrain_y) as f64) / 50.0));
+                    let x_pos = self.start_room_screen_pos.0
+                        + self.room_screen_size
+                            * (*current_relative_room_x as f64 + ((*current_terrain_x as f64) / 50.0));
+                    let y_pos = self.start_room_screen_pos.1
+                        + self.room_screen_size
+                            * (*current_relative_room_y as f64 + (((50 - *current_terrain_y) as f64) / 50.0));
 
                     Primitive {
                         id: self.render_id,
@@ -383,12 +383,12 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                     move |in_room_x, in_room_y, color| {
                         let terrain_square_length = room_screen_size / 50.0;
 
-                        let x_pos = start_room_screen_pos.0 +
-                            room_screen_size * (current_relative_room_x as f64 + (((in_room_x as f64) - 1.0) / 50.0)) +
-                            terrain_square_length;
-                        let y_pos = start_room_screen_pos.1 +
-                            room_screen_size * (current_relative_room_y as f64 + ((49.0 - (in_room_y as f64)) / 50.0)) +
-                            terrain_square_length;
+                        let x_pos = start_room_screen_pos.0
+                            + room_screen_size * (current_relative_room_x as f64 + (((in_room_x as f64) - 1.0) / 50.0))
+                            + terrain_square_length;
+                        let y_pos = start_room_screen_pos.1
+                            + room_screen_size * (current_relative_room_y as f64 + ((49.0 - (in_room_y as f64)) / 50.0))
+                            + terrain_square_length;
 
                         let visual_length = terrain_square_length;
 
@@ -571,12 +571,12 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                 let current_relative_room_y = *current_relative_room_y;
                 let terrain_square_length = room_screen_size / 50.0;
 
-                let x_pos = start_room_screen_pos.0 +
-                    room_screen_size * (current_relative_room_x as f64 + (((0.0 as f64) - 1.0) / 50.0)) +
-                    terrain_square_length;
-                let y_pos = start_room_screen_pos.1 +
-                    room_screen_size * (current_relative_room_y as f64 + ((49.0 - (0.0 as f64)) / 50.0)) +
-                    terrain_square_length;
+                let x_pos = start_room_screen_pos.0
+                    + room_screen_size * (current_relative_room_x as f64 + (((0.0 as f64) - 1.0) / 50.0))
+                    + terrain_square_length;
+                let y_pos = start_room_screen_pos.1
+                    + room_screen_size * (current_relative_room_y as f64 + ((49.0 - (0.0 as f64)) / 50.0))
+                    + terrain_square_length;
 
                 let visual_length = terrain_square_length * 50.0;
 

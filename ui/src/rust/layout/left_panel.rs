@@ -47,27 +47,27 @@ pub fn left_panel_available(
         MenuState::Open => {
             left_panel_panel_open(ui, ids, update);
 
-            if left_toggle_clicks % 2 == 1 ||
-                left_toggle_clicks == 0 &&
-                    ui.global_input()
+            if left_toggle_clicks % 2 == 1
+                || left_toggle_clicks == 0
+                    && ui.global_input()
                         .current
                         .mouse
                         .buttons
                         .pressed()
                         .next()
-                        .is_some() &&
-                    ui.global_input()
+                        .is_some()
+                    && ui.global_input()
                         .current
                         .widget_capturing_mouse
                         .or_else(|| ui.global_input().current.widget_under_mouse)
                         .map(|capturing| {
-                            capturing != ids.left_panel.panel_toggle &&
-                                !ui.widget_graph().does_recursive_edge_exist(
+                            capturing != ids.left_panel.panel_toggle
+                                && !ui.widget_graph().does_recursive_edge_exist(
                                     ids.left_panel.open_panel_canvas,
                                     capturing,
                                     |_| true,
-                                ) &&
-                                !ui.widget_graph().does_recursive_edge_exist(
+                                )
+                                && !ui.widget_graph().does_recursive_edge_exist(
                                     ids.left_panel.panel_toggle,
                                     capturing,
                                     |_| true,

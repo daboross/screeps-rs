@@ -62,8 +62,8 @@ where
                         login_ok.return_to(&executor.api().tokens);
                         debug!("execute_or_login_and_execute login finished, attempting to execute again.");
                         // TODO: something here to ensure that this doesn't end up as an infinite loop
-                        Box::new(execute_or_login_and_execute(executor, func, failure_func)) as
-                            Box<Future<Item = _, Error = _>>
+                        Box::new(execute_or_login_and_execute(executor, func, failure_func))
+                            as Box<Future<Item = _, Error = _>>
                     }
                     Err(e) => Box::new(failure_func(executor, e)) as Box<Future<Item = _, Error = _>>,
                 }

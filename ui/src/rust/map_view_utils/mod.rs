@@ -1,4 +1,3 @@
-
 pub const ZOOM_MODIFIER: f64 = 1.0 / 500.0;
 pub const MIN_ZOOM: f64 = 0.1;
 pub const MAX_ZOOM: f64 = 10.0;

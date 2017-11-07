@@ -72,8 +72,8 @@ impl SelectedRooms {
 
     #[inline]
     pub fn contains(&self, room: &RoomName) -> bool {
-        (self.start.x_coord < room.x_coord && room.x_coord < self.end.x_coord) &&
-            (self.start.y_coord < room.y_coord && room.y_coord < self.end.y_coord)
+        (self.start.x_coord < room.x_coord && room.x_coord < self.end.x_coord)
+            && (self.start.y_coord < room.y_coord && room.y_coord < self.end.y_coord)
     }
 }
 

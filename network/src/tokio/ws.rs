@@ -245,8 +245,8 @@ where
 
                         match (unsubscribed_rooms.len(), subscribed_room) {
                             (0, Some(to_unsubscribe)) => {
-                                (Box::new(unsubscribe_detail(self, to_unsubscribe, old_shard)) as
-                                    Box<Future<Item = Self, Error = _> + 'static>)
+                                (Box::new(unsubscribe_detail(self, to_unsubscribe, old_shard))
+                                    as Box<Future<Item = Self, Error = _> + 'static>)
                             }
                             (_, Some(to_unsubscribe)) => Box::new(
                                 unsubscribe_map_views(self, unsubscribed_rooms, old_shard)
@@ -433,8 +433,8 @@ where
                                 let text = match message {
                                     websocket::OwnedMessage::Text(text) => Ok(text),
                                     websocket::OwnedMessage::Ping(data) => {
-                                        return Box::new(finish_ping(executor, connection, data)) as
-                                            Box<Future<Item = _, Error = _>>
+                                        return Box::new(finish_ping(executor, connection, data))
+                                            as Box<Future<Item = _, Error = _>>
                                     }
                                     other => {
                                         let err = match other {
@@ -460,8 +460,8 @@ where
                                         match err {
                                             Ok(()) => {
                                                 // recursion here
-                                                return Box::new(test_response(executor, connection)) as
-                                                    Box<Future<Item = _, Error = _>>;
+                                                return Box::new(test_response(executor, connection))
+                                                    as Box<Future<Item = _, Error = _>>;
                                             }
                                             Err(e) => Err(e),
                                         }
@@ -491,8 +491,8 @@ where
                                         parsing::ScreepsMessage::AuthOk { new_token } => {
                                             executor.http_client.tokens.return_token(new_token);
 
-                                            Box::new(future::ok((executor, connection))) as
-                                                Box<Future<Item = _, Error = _>>
+                                            Box::new(future::ok((executor, connection)))
+                                                as Box<Future<Item = _, Error = _>>
                                         }
                                         parsing::ScreepsMessage::AuthFailed => {
                                             executor.relay_http_error(screeps_api::ErrorKind::Unauthorized.into());
@@ -507,8 +507,8 @@ where
                                             );
 
                                             // Recursion here!
-                                            Box::new(test_response(executor, connection)) as
-                                                Box<Future<Item = _, Error = _>>
+                                            Box::new(test_response(executor, connection))
+                                                as Box<Future<Item = _, Error = _>>
                                         }
                                     },
                                     parsing::SockjsMessage::Messages(m_list) => {
@@ -517,15 +517,15 @@ where
                                                 parsing::ScreepsMessage::AuthOk { new_token } => {
                                                     executor.http_client.tokens.return_token(new_token);
 
-                                                    return Box::new(future::ok((executor, connection))) as
-                                                        Box<Future<Item = _, Error = _>>;
+                                                    return Box::new(future::ok((executor, connection)))
+                                                        as Box<Future<Item = _, Error = _>>;
                                                 }
                                                 parsing::ScreepsMessage::AuthFailed => {
                                                     executor
                                                         .relay_http_error(screeps_api::ErrorKind::Unauthorized.into());
 
-                                                    return Box::new(future::err(executor)) as
-                                                        Box<Future<Item = _, Error = _>>;
+                                                    return Box::new(future::err(executor))
+                                                        as Box<Future<Item = _, Error = _>>;
                                                 }
                                                 // TODO: duplicated below in actual receiver
                                                 msg @ parsing::ScreepsMessage::ServerProtocol { .. } |
@@ -544,14 +544,14 @@ where
                                         }
 
                                         // Recursion here!
-                                        Box::new(test_response(executor, connection)) as
-                                            Box<Future<Item = _, Error = _>>
+                                        Box::new(test_response(executor, connection))
+                                            as Box<Future<Item = _, Error = _>>
                                     }
                                     parsing::SockjsMessage::Open => {
                                         debug!("SockJS connection opened");
                                         // Recursion here!
-                                        Box::new(test_response(executor, connection)) as
-                                            Box<Future<Item = _, Error = _>>
+                                        Box::new(test_response(executor, connection))
+                                            as Box<Future<Item = _, Error = _>>
                                     }
                                     other => {
                                         warn!(
@@ -561,8 +561,8 @@ where
                                         );
 
                                         // Recursion here!
-                                        Box::new(test_response(executor, connection)) as
-                                            Box<Future<Item = _, Error = _>>
+                                        Box::new(test_response(executor, connection))
+                                            as Box<Future<Item = _, Error = _>>
                                     }
                                 }
                             }

@@ -769,7 +769,9 @@ pub mod text_edit {
                             input::Key::Left | input::Key::Right | input::Key::Up | input::Key::Down => {
                                 let font = ui.fonts.get(font_id).unwrap();
                                 let move_word = press.modifiers.contains(input::keyboard::ModifierKey::CTRL);
-                                let select = press.modifiers.contains(input::keyboard::ModifierKey::SHIFT);
+                                let select = press
+                                    .modifiers
+                                    .contains(input::keyboard::ModifierKey::SHIFT);
 
                                 let (old_selection_start, cursor_idx) = match cursor {
                                     Cursor::Idx(idx) => (idx, idx),
@@ -843,9 +845,7 @@ pub mod text_edit {
                                                             cursor_idx.next_word_end(&displayed_text, line_infos)
                                                         }
                                                         _ => unreachable!(),
-                                                    }.unwrap_or(
-                                                        cursor_idx,
-                                                    )
+                                                    }.unwrap_or(cursor_idx)
                                                 }
                                             };
                                             cursor = Cursor::Idx(new_cursor_idx);
@@ -953,8 +953,8 @@ pub mod text_edit {
                     }
 
                     event::Widget::Text(event::Text { string, modifiers }) => {
-                        if modifiers.contains(input::keyboard::ModifierKey::CTRL) || string.chars().count() == 0 ||
-                            string.chars().next().is_none()
+                        if modifiers.contains(input::keyboard::ModifierKey::CTRL) || string.chars().count() == 0
+                            || string.chars().next().is_none()
                         {
                             continue 'events;
                         }

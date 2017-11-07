@@ -35,10 +35,11 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                         match event {
                             // Break from the loop upon `Escape`.
                             glutin::WindowEvent::KeyboardInput {
-                                input: glutin::KeyboardInput {
-                                    virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
-                                    ..
-                                },
+                                input:
+                                    glutin::KeyboardInput {
+                                        virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
+                                        ..
+                                    },
                                 ..
                             } |
                             glutin::WindowEvent::Closed => control.exit(),

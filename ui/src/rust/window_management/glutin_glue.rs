@@ -77,8 +77,10 @@ impl EventLoop {
         };
 
         loop {
-            self.poll_events(|evt| if !control.exiting {
-                callback(&mut control, Event::Glutin(evt))
+            self.poll_events(|evt| {
+                if !control.exiting {
+                    callback(&mut control, Event::Glutin(evt))
+                }
             });
 
             if control.exiting {
@@ -100,8 +102,10 @@ impl EventLoop {
                 continue;
             }
 
-            self.wait_events(|evt| if !control.exiting {
-                callback(&mut control, Event::Glutin(evt))
+            self.wait_events(|evt| {
+                if !control.exiting {
+                    callback(&mut control, Event::Glutin(evt))
+                }
             });
 
             if control.exiting {
