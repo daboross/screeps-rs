@@ -17,11 +17,11 @@ path = "src/rust/lib.rs"
 
 [dependencies]
 # Graphics
-glium = "0.17"
-glutin = "0.9"
+glium = "0.18"
+glutin = "0.10"
 rusttype = "0.2"
 time = "0.1"
-conrod = { version = "0.55.0", features = ["winit", "glium"] }
+conrod = { version = "0.56", features = ["winit", "glium"] }
 conrod_derive = "0.1.0"
 # Types:
 screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git", default-features = false }

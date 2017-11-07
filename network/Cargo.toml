@@ -23,7 +23,7 @@ websocket = "0.20"
 screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git", default-features = false }
 # Caching
 time = "0.1"
-bincode = "0.8"
+bincode = "0.9"
 rocksdb = "0.8"
 app_dirs = "1.1"
 serde = "1.0"
