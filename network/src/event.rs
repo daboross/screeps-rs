@@ -41,8 +41,12 @@ pub enum NetworkEvent {
         room_name: screeps_api::RoomName,
         result: Result<screeps_api::TerrainGrid, screeps_api::Error>,
     },
-    WebsocketHttpError { error: screeps_api::Error },
-    WebsocketError { error: websocket::WebSocketError },
+    WebsocketHttpError {
+        error: screeps_api::Error,
+    },
+    WebsocketError {
+        error: websocket::WebSocketError,
+    },
     WebsocketParseError {
         error: screeps_api::websocket::parsing::ParseError,
     },
