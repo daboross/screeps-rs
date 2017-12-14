@@ -28,6 +28,16 @@ This client is built on three main projects:
 
 Eventually, this will be able to connect to both the [official server][screeps] and any [private server][screeps-os] instances run by users.
 
+Running:
+- If you're on Ubuntu 17.10+, or on another Wayland Linux: (see [glutin#949])
+  - install "libegl1-mesa-dev"
+  - soft-link `libwayland-egl.so.1` to `libwayland-egl.so` in your system's lib dir. On ubuntu:
+    
+    ```
+    cd /usr/lib/x86_64-linux-gnu/
+    sudo ln -s libwayland-egl.so.1 libwayland-egl.so
+    ```
+
 Neighbor projects:
 
 - APIs:
@@ -37,6 +47,7 @@ Neighbor projects:
   - [`ricochet1k/screeps-client`] implements a full screeps room viewer in browser JavaScript
   - [`ags131/screeps-client`] implements a slightly-less-full screeps room viewer in browser JavaScript
   - [`screeps-silica`] is directly connected to screeps-rs, using Scala to accomplish the same goals
+  - [`Screeps3D`] is a native 3D screeps client built using Unity3D
 
 [`screeps-rs`] uses the `Akashi` font. It is included with permission from [Ten by Twenty][ten-by-twenty].
 
@@ -59,3 +70,5 @@ Neighbor projects:
 [screeps-os]: https://github.com/screeps/screeps/
 [ten-by-twenty]: http://tenbytwenty.com/
 [map-image]: docs/map-render.png
+[tomaka/glutin#949]: https://github.com/tomaka/glutin/issues/949
+[`Screeps3D`]: https://github.com/bonzaiferroni/Screeps3D
