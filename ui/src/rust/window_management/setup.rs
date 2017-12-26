@@ -41,15 +41,15 @@ where
 {
     let mut dispatch = fern::Dispatch::new()
         .level(if verbose {
-            log::LogLevelFilter::Trace
+            log::LevelFilter::Trace
         } else {
-            log::LogLevelFilter::Info
+            log::LevelFilter::Info
         })
-        .level_for("rustls", log::LogLevelFilter::Warn)
-        .level_for("hyper", log::LogLevelFilter::Warn);
+        .level_for("rustls", log::LevelFilter::Warn)
+        .level_for("hyper", log::LevelFilter::Warn);
 
     for module in debug_modules {
-        dispatch = dispatch.level_for(module.as_ref().to_owned(), log::LogLevelFilter::Trace);
+        dispatch = dispatch.level_for(module.as_ref().to_owned(), log::LevelFilter::Trace);
     }
 
     dispatch

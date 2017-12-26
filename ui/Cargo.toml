@@ -17,20 +17,20 @@ path = "src/rust/lib.rs"
 
 [dependencies]
 # Graphics
-glium = "0.18"
-glutin = "0.10"
-rusttype = "0.2"
+glium = "0.19"
+glutin = "0.11"
+rusttype = "0.3"
 time = "0.1"
-conrod = { version = "0.56", features = ["winit", "glium"] }
+conrod = { version = "0.57", features = ["winit", "glium"] }
 conrod_derive = "0.1.0"
 # Types:
-screeps-api = { git = "https://github.com/daboross/rust-screeps-api.git", default-features = false }
+screeps-api = { version = "0.3", default-features = false }
 # Networking
 screeps-rs-network = { path = "../network" }
 # Logging
 chrono = "0.4"
-log = "0.3"
-fern = "0.4"
+log = "0.4"
+fern = "0.5"
 # Command-line
 clap = "2.22"
 
