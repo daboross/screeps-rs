@@ -559,7 +559,7 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
             ConstructedViewIteratorState::RoomRender {
                 ref mut current_relative_room_x,
                 ref mut current_relative_room_y,
-                ref mut current_room,
+                current_room: ref mut _current_room,
             } => {
                 // TODO: this is a placeholder to make sure we're getting clicking on the screen right.
                 next_state = Some(ConstructedViewIteratorState::Done);
