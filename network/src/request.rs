@@ -107,7 +107,10 @@ impl Iterator for IterSelectedRooms {
     type Item = RoomName;
 
     fn next(&mut self) -> Option<RoomName> {
-        match (self.current.x_coord == self.end.x_coord, self.current.y_coord == self.end.y_coord) {
+        match (
+            self.current.x_coord == self.end.x_coord,
+            self.current.y_coord == self.end.y_coord,
+        ) {
             (false, _) => {
                 let item = self.current;
                 self.current.x_coord += 1;

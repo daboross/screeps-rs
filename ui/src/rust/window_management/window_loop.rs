@@ -41,8 +41,8 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                                         ..
                                     },
                                 ..
-                            } |
-                            glutin::WindowEvent::Closed => control.exit(),
+                            }
+                            | glutin::WindowEvent::Closed => control.exit(),
                             glutin::WindowEvent::Refresh | glutin::WindowEvent::Resized(..) => {
                                 app.ui.needs_redraw();
                                 control.needs_update();

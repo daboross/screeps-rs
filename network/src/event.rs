@@ -60,7 +60,6 @@ pub enum NetworkEvent {
     },
 }
 
-
 impl NetworkEvent {
     pub fn error(&self) -> Option<&screeps_api::Error> {
         match *self {
@@ -69,10 +68,10 @@ impl NetworkEvent {
             NetworkEvent::ShardList { ref result, .. } => result.as_ref().err(),
             NetworkEvent::RoomTerrain { ref result, .. } => result.as_ref().err(),
             NetworkEvent::WebsocketHttpError { ref error } => Some(error),
-            NetworkEvent::MapView { .. } |
-            NetworkEvent::RoomView { .. } |
-            NetworkEvent::WebsocketError { .. } |
-            NetworkEvent::WebsocketParseError { .. } => None,
+            NetworkEvent::MapView { .. }
+            | NetworkEvent::RoomView { .. }
+            | NetworkEvent::WebsocketError { .. }
+            | NetworkEvent::WebsocketParseError { .. } => None,
         }
     }
 }

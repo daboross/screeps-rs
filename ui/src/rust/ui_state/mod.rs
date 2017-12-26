@@ -2,7 +2,6 @@ use {conrod, screeps_api, time};
 use NetworkHandler;
 use map_view_utils::{bound_zoom, zoom_multiplier_from_factor, ZOOM_MODIFIER};
 
-
 #[derive(Debug, PartialEq)]
 pub enum Event {
     LeftMenuOpened,
@@ -128,7 +127,6 @@ impl MapScreenState {
         }
     }
 }
-
 
 impl State {
     pub fn new() -> State {

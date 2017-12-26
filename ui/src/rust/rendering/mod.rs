@@ -82,7 +82,10 @@ impl<'a> BorrowedRender<'a> {
         let parent_rect = replacing_primitive.rect;
         let parent_scizzor = replacing_primitive.scizzor;
 
-        debug!("into_primitives: {{parent_rect: {:?}, parent_scizzor: {:?}}}", parent_rect, parent_scizzor);
+        debug!(
+            "into_primitives: {{parent_rect: {:?}, parent_scizzor: {:?}}}",
+            parent_rect, parent_scizzor
+        );
 
         let BorrowedRender {
             replace, draw_type, ..

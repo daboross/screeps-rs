@@ -47,9 +47,10 @@ impl ErrorEvent {
 impl fmt::Display for ErrorEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ErrorEvent::NotLoggedIn => {
-                write!(f, "network connection attempted that is not available without logging in.")
-            }
+            ErrorEvent::NotLoggedIn => write!(
+                f,
+                "network connection attempted that is not available without logging in."
+            ),
             ErrorEvent::ErrorOccurred(ref e) => e.fmt(f),
             ErrorEvent::WebsocketError(ref e) => e.fmt(f),
             ErrorEvent::WebsocketParse(ref e) => e.fmt(f),

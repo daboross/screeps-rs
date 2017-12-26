@@ -18,7 +18,6 @@ const LOGIN_PADDING: conrod::Scalar = 10.0;
 
 const LOGIN_LOWER_SECTION_HEIGHT: conrod::Scalar = (LOGIN_HEIGHT - HEADER_HEIGHT) / 3.0;
 
-
 pub struct LoginIds {
     root: Id,
     header_canvas: Id,
@@ -155,7 +154,10 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
         .mid_left_with_margin_on(ids.login.password_canvas, LOGIN_PADDING)
         .set(ids.login.password_label, ui);
 
-    let label_width = match (ui.w_of(ids.login.username_label), ui.w_of(ids.login.password_label)) {
+    let label_width = match (
+        ui.w_of(ids.login.username_label),
+        ui.w_of(ids.login.password_label),
+    ) {
         (Some(w1), Some(w2)) => conrod::Scalar::max(w1, w2),
         (Some(w), None) | (None, Some(w)) => w,
         (None, None) => LOGIN_WIDTH / 2.0 - LOGIN_PADDING * 1.5,
@@ -219,7 +221,11 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
         && state.password.len() > 0
     {
         // TODO: UI option for shard.
-        let settings = ConnectionSettings::new(state.username.clone(), state.password.clone(), "shard0".to_owned());
+        let settings = ConnectionSettings::new(
+            state.username.clone(),
+            state.password.clone(),
+            "shard0".to_owned(),
+        );
 
         debug!("sending login request to existing network.");
 

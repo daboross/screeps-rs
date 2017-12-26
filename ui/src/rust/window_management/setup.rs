@@ -56,7 +56,13 @@ where
         .format(|out, msg, record| {
             let now = chrono::Local::now();
 
-            out.finish(format_args!("[{}][{}] {}: {}", now.format("%H:%M:%S"), record.level(), record.target(), msg));
+            out.finish(format_args!(
+                "[{}][{}] {}: {}",
+                now.format("%H:%M:%S"),
+                record.level(),
+                record.target(),
+                msg
+            ));
         })
         .chain(io::stdout())
         .apply()

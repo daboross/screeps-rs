@@ -131,7 +131,6 @@ where
             .or_else(|self::WsExit| Box::new(future::ok(())))
     }
 
-
     fn execute(mut self, request: WebsocketRequest) -> impl Future<Item = Self, Error = WsExit> + 'static {
         match request {
             WebsocketRequest::SetMapSubscribes { rooms } => {
@@ -207,7 +206,7 @@ where
 
                             (Some(old_shard), false)
                         }
-                        (false, _, _) => {
+                        (false, ..) => {
                             // unsubscribe from everything for the old shard.
                             let old_shard = current.shard.clone();
                             *current = settings;
@@ -303,7 +302,10 @@ where
                 .wakeup()
                 .expect("expected glium loop to still be running when "),
             Err(event) => {
-                warn!("failed to send websocket event to main thread - event: {}", event);
+                warn!(
+                    "failed to send websocket event to main thread - event: {}",
+                    event
+                );
             }
         };
     }
@@ -453,9 +455,10 @@ where
                                                 );
                                                 Ok(())
                                             }
-                                            other => Err(parsing::ParseError::Other(
-                                                format!("expected text websocket message, found {:?}", other),
-                                            )),
+                                            other => Err(parsing::ParseError::Other(format!(
+                                                "expected text websocket message, found {:?}",
+                                                other
+                                            ))),
                                         };
                                         match err {
                                             Ok(()) => {
@@ -528,9 +531,9 @@ where
                                                         as Box<Future<Item = _, Error = _>>;
                                                 }
                                                 // TODO: duplicated below in actual receiver
-                                                msg @ parsing::ScreepsMessage::ServerProtocol { .. } |
-                                                msg @ parsing::ScreepsMessage::ServerPackage { .. } |
-                                                msg @ parsing::ScreepsMessage::ServerTime { .. } => {
+                                                msg @ parsing::ScreepsMessage::ServerProtocol { .. }
+                                                | msg @ parsing::ScreepsMessage::ServerPackage { .. }
+                                                | msg @ parsing::ScreepsMessage::ServerTime { .. } => {
                                                     debug!("received protocol message: {:?}", msg);
                                                 }
                                                 other => {
@@ -583,24 +586,26 @@ where
                     Box::new(future::err(self)) as Box<Future<Item = _, Error = _>>
                 }
             })
-            .and_then(|(mut executor, connection): (Self, WebsocketMergedStream)| {
-                executor.connection_id += 1;
+            .and_then(
+                |(mut executor, connection): (Self, WebsocketMergedStream)| {
+                    executor.connection_id += 1;
 
-                let (sink, stream) = connection.split();
+                    let (sink, stream) = connection.split();
 
-                ReaderData::new(
-                    executor.handle.clone(),
-                    executor.send_results.clone(),
-                    executor.http_client.tokens.clone(),
-                    executor.notify.clone(),
-                    executor.raw_send_sender.clone(),
-                    executor.connection_id,
-                ).start(stream);
+                    ReaderData::new(
+                        executor.handle.clone(),
+                        executor.send_results.clone(),
+                        executor.http_client.tokens.clone(),
+                        executor.notify.clone(),
+                        executor.raw_send_sender.clone(),
+                        executor.connection_id,
+                    ).start(stream);
 
-                executor.client = Some(sink);
+                    executor.client = Some(sink);
 
-                future::ok(executor)
-            })
+                    future::ok(executor)
+                },
+            )
     }
 
     fn subscribe(self, channel: Channel<'static>) -> impl Future<Item = Self, Error = WsExit> + 'static {
@@ -615,7 +620,10 @@ where
                         executor.subscribed_room_view.set(Some(room_name));
                     }
                     other => {
-                        warn!("websocket executor not prepared to handle registering channel {}", other);
+                        warn!(
+                            "websocket executor not prepared to handle registering channel {}",
+                            other
+                        );
                     }
                 };
                 Ok(executor)
@@ -644,7 +652,10 @@ where
                         executor.subscribed_room_view.set(None);
                     },
                     other => {
-                        warn!("websocket executor not prepared to handle registering channel {}", other);
+                        warn!(
+                            "websocket executor not prepared to handle registering channel {}",
+                            other
+                        );
                     }
                 };
                 Ok(executor)
@@ -795,9 +806,9 @@ mod read {
         fn event_screeps_message(&self, message: ScreepsMessage) -> Result<(), ExitNow> {
             match message {
                 // TODO: duplicated above in login protocol
-                msg @ ScreepsMessage::ServerProtocol { .. } |
-                msg @ ScreepsMessage::ServerPackage { .. } |
-                msg @ ScreepsMessage::ServerTime { .. } => {
+                msg @ ScreepsMessage::ServerProtocol { .. }
+                | msg @ ScreepsMessage::ServerPackage { .. }
+                | msg @ ScreepsMessage::ServerTime { .. } => {
                     debug!("received protocol message: {:?}", msg);
                 }
                 ScreepsMessage::AuthFailed => {
@@ -816,7 +827,10 @@ mod read {
                     self.event_channel_update(update)?;
                 }
                 ScreepsMessage::Other(unparsed) => {
-                    warn!("received screeps message which did not match any known format!\n\t{}", unparsed);
+                    warn!(
+                        "received screeps message which did not match any known format!\n\t{}",
+                        unparsed
+                    );
                 }
             }
             Ok(())

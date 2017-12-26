@@ -53,14 +53,12 @@ pub fn create_ui(app: &mut AppCell, state: &MapScreenState, mut update: &mut Vec
         .middle_of(ids.root.body)
         .set(ids.room_view.scroll_widget, ui);
 
-
     // display rect
     Rectangle::fill(ui.wh_of(ids.root.body).unwrap())
         .color(color::TRANSPARENT)
         .middle_of(ids.root.body)
         .graphics_for(ids.room_view.scroll_widget)
         .set(ids.room_view.display, ui);
-
 
     if state.panels.left == ui_state::MenuState::Open {
         let shard_list = net_cache.shard_list();
@@ -89,7 +87,6 @@ pub fn create_ui(app: &mut AppCell, state: &MapScreenState, mut update: &mut Vec
             None => {}
         }
     }
-
 
     if let Some(info) = net_cache.my_info() {
         Text::new(&format!("{} - GCL {}", info.username, screeps_api::gcl_calc(info.gcl_points)))
@@ -141,12 +138,7 @@ pub fn create_ui(app: &mut AppCell, state: &MapScreenState, mut update: &mut Vec
     let count_y = ((view_rect.h() - extra_scroll_y) / room_size).ceil() as i32;
     debug!(
         "scroll_state: ({:?}) initial room: {}. extra scroll: ({}, {}). count: ({}, {})",
-        state.map_scroll,
-        initial_room,
-        extra_scroll_x,
-        extra_scroll_y,
-        count_x,
-        count_y
+        state.map_scroll, initial_room, extra_scroll_x, extra_scroll_y, count_x, count_y
     );
 
     // fetch rooms just outside the boundary as well so we can have smoother scrolling
@@ -157,7 +149,12 @@ pub fn create_ui(app: &mut AppCell, state: &MapScreenState, mut update: &mut Vec
     let rooms_to_view = SelectedRooms::new(initial_room..(initial_room + (count_x, count_y)));
     let offset = MapViewOffset::new(extra_scroll_x, extra_scroll_y, room_size);
 
-    *app.additional_rendering = Some(AdditionalRender::map_view(ids.root.body, rooms_to_view, room_data, offset));
+    *app.additional_rendering = Some(AdditionalRender::map_view(
+        ids.root.body,
+        rooms_to_view,
+        room_data,
+        offset,
+    ));
 }
 
 #[derive(Copy, Clone, Debug, Default)]

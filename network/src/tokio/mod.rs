@@ -140,7 +140,12 @@ impl<N: Notify> Handler<N> {
 
         let remote = handler.start_async_and_get_remote();
 
-        self.handles = Some(HandlerHandles::new(remote, http_send_to_handler, ws_send_to_handler, recv_from_handler));
+        self.handles = Some(HandlerHandles::new(
+            remote,
+            http_send_to_handler,
+            ws_send_to_handler,
+            recv_from_handler,
+        ));
     }
 }
 
@@ -191,7 +196,6 @@ impl<N> fmt::Debug for Handler<N> {
             .finish()
     }
 }
-
 
 struct ThreadedHandler<N> {
     http_recv: FuturesReceiver<HttpRequest>,
@@ -293,7 +297,13 @@ impl<N: Notify> ThreadedHandler<N> {
             );
         }
 
-        let ws_executor = ws::Executor::new(handle.clone(), send.clone(), client.clone(), settings, notify.clone());
+        let ws_executor = ws::Executor::new(
+            handle.clone(),
+            send.clone(),
+            client.clone(),
+            settings,
+            notify.clone(),
+        );
 
         // zip ensures that we have one token for each request! this way we'll
         // never have more than 5 concurrent requests.

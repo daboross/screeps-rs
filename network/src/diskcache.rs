@@ -99,7 +99,10 @@ impl Cache {
         let pool = self.access_pool.clone();
         let db = self.database.clone();
         // run once on app startup, then once every hour.
-        let stream = stream::once(Ok(())).select(reactor::Interval::new(Duration::from_secs(60 * 60), handle)?);
+        let stream = stream::once(Ok(())).select(reactor::Interval::new(
+            Duration::from_secs(60 * 60),
+            handle,
+        )?);
 
         handle.spawn(
             stream
@@ -157,8 +160,7 @@ impl Cache {
                                  \nEntry: (terrain:{})\
                                  \nDecode error: {}\
                                  \nRemoving data.",
-                                room,
-                                e
+                                room, e
                             );
 
                             if let Err(e) = sent_database.delete(&key) {
@@ -184,7 +186,10 @@ fn cleanup_database(db: &rocksdb::DB) -> Result<(), rocksdb::Error> {
         let parsed_key = match CacheKey::decode(&key) {
             Ok(v) => v,
             Err(e) => {
-                warn!("when clearing old cache: unknown key '{:?}' found (read error: {}). Deleting.", key, e);
+                warn!(
+                    "when clearing old cache: unknown key '{:?}' found (read error: {}). Deleting.",
+                    key, e
+                );
                 db.delete(&key)?;
                 continue;
             }
@@ -206,7 +211,10 @@ fn cleanup_database(db: &rocksdb::DB) -> Result<(), rocksdb::Error> {
                 db.delete(&key)?;
             }
             Err(e) => {
-                debug!("removing cache entry ({:?}): invalid data ({})", parsed_key, e);
+                debug!(
+                    "removing cache entry ({:?}): invalid data ({})",
+                    parsed_key, e
+                );
                 db.delete(&key)?;
             }
         }

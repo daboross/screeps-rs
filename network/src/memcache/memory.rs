@@ -148,11 +148,7 @@ impl MemCache {
                                                 "update for id {} in room {} did not \
                                                  parse: existing value: {:?}, failed \
                                                  update: {:?}, error: {}",
-                                                id,
-                                                room_name,
-                                                obj_data,
-                                                obj_update,
-                                                e
+                                                id, room_name, obj_data, obj_update, e
                                             ))
                                         })?;
                                     }
@@ -161,10 +157,7 @@ impl MemCache {
                                             ErrorEvent::room_view(format!(
                                                 "data for id {} in room {} did not \
                                                  parse: failed json: {:?}, error: {}",
-                                                id,
-                                                room_name,
-                                                obj_update,
-                                                e
+                                                id, room_name, obj_update, e
                                             ))
                                         })?);
                                     }
@@ -181,10 +174,7 @@ impl MemCache {
                                     ErrorEvent::room_view(format!(
                                         "data for id {} in room {} did not parse: \
                                          failed json: {:?}, error: {}",
-                                        id,
-                                        room_name,
-                                        obj_json,
-                                        e
+                                        id, room_name, obj_json, e
                                     ))
                                 })?;
                                 Ok((id, data))

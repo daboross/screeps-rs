@@ -86,7 +86,11 @@ where
             HttpRequest::MyInfo => {
                 let execute = |executor: Self| match executor.client.my_info() {
                     Ok(future) => Ok(future.then(move |result| {
-                        future::ok((executor, HttpRequest::MyInfo, NetworkEvent::MyInfo { result: result }))
+                        future::ok((
+                            executor,
+                            HttpRequest::MyInfo,
+                            NetworkEvent::MyInfo { result: result },
+                        ))
                     })),
                     Err(e) => Err((executor, e)),
                 };
@@ -134,14 +138,13 @@ where
                                     .map(|data| data.terrain)
                                     .then(move |result| {
                                         if let Ok(ref data) = result {
-                                            self.handle.spawn(
-                                                self.disk_cache.set_terrain(room_name, data).then(|result| {
+                                            self.handle
+                                                .spawn(self.disk_cache.set_terrain(room_name, data).then(|result| {
                                                     if let Err(e) = result {
                                                         warn!("error occurred storing to terrain cache: {}", e);
                                                     }
                                                     Ok(())
-                                                }),
-                                            );
+                                                }));
                                         }
                                         future::ok((self, result))
                                     }),
@@ -171,7 +174,7 @@ where
                     ) {
                         (true, true, true) => (),
                         (true, false, _) | (true, _, false) => *current = settings.clone(),
-                        (false, _, _) => {
+                        (false, ..) => {
                             *current = settings.clone();
                             while let Some(_) = self.client.tokens.take_token() {}
                         }
@@ -184,8 +187,8 @@ where
     }
 
     pub fn execute(self, request: HttpRequest) -> impl Future<Item = (), Error = ()> + 'static {
-        self.exec_network(request)
-            .then(move |result| -> Box<Future<Item = (), Error = ()> + 'static> {
+        self.exec_network(request).then(
+            move |result| -> Box<Future<Item = (), Error = ()> + 'static> {
                 let exec = match result {
                     Ok((exec, request, event)) => {
                         if let Some(err) = event.error() {
@@ -231,6 +234,7 @@ where
                     };
                     future::ok(())
                 }))
-            })
+            },
+        )
     }
 }

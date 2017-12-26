@@ -314,7 +314,6 @@ pub mod text_edit {
         },
     }
 
-
     impl<'a> TextEdit<'a> {
         /// Construct a TextEdit widget.
         pub fn new(text: &'a str) -> Self {
@@ -740,8 +739,10 @@ pub mod text_edit {
                                 };
 
                                 if let (Some(start_idx), Some(end_idx)) = (start_idx, end_idx) {
-                                    let (start_idx, end_idx) =
-                                        (std::cmp::min(start_idx, end_idx), std::cmp::max(start_idx, end_idx));
+                                    let (start_idx, end_idx) = (
+                                        std::cmp::min(start_idx, end_idx),
+                                        std::cmp::max(start_idx, end_idx),
+                                    );
 
                                     let new_cursor_char_idx = if start_idx > 0 { start_idx } else { 0 };
                                     let new_cursor_idx = {
@@ -1082,12 +1083,16 @@ pub mod text_edit {
 
             let (cursor_x, cursor_y_range) = {
                 let font = ui.fonts.get(font_id).unwrap();
-                cursor_xy_at(cursor_idx, replacement_string.as_ref().unwrap_or(&text), &state.line_infos, font)
-                    .unwrap_or_else(|| {
-                        let x = rect.left();
-                        let y = Range::new(0.0, font_size as Scalar).align_to(y_align, rect.y);
-                        (x, y)
-                    })
+                cursor_xy_at(
+                    cursor_idx,
+                    replacement_string.as_ref().unwrap_or(&text),
+                    &state.line_infos,
+                    font,
+                ).unwrap_or_else(|| {
+                    let x = rect.left();
+                    let y = Range::new(0.0, font_size as Scalar).align_to(y_align, rect.y);
+                    (x, y)
+                })
             };
 
             let start = [0.0, cursor_y_range.start];
@@ -1133,8 +1138,14 @@ pub mod text_edit {
                     let lines = line_infos
                         .clone()
                         .map(|info| &replacement_string.as_ref().unwrap_or(&text)[info.byte_range()]);
-                    let line_rects =
-                        text::line::rects(line_infos.clone(), font_size, rect, justify, y_align, line_spacing);
+                    let line_rects = text::line::rects(
+                        line_infos.clone(),
+                        font_size,
+                        rect,
+                        justify,
+                        y_align,
+                        line_spacing,
+                    );
                     let lines_with_rects = lines.zip(line_rects.clone());
                     let font = ui.fonts.get(font_id).unwrap();
                     text::line::selected_rects(lines_with_rects, font, font_size, start, end).collect()
@@ -1159,7 +1170,6 @@ pub mod text_edit {
                         .set(selected_rectangle_id, ui);
                 }
             }
-
 
             take_if_owned(text)
         }

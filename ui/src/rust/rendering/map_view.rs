@@ -63,13 +63,19 @@ fn find_next_available_room<'a>(
             break None;
         }
 
-        let new_room = start_room_name + (current_relative_room_x as i32, current_relative_room_y as i32);
+        let new_room = start_room_name
+            + (
+                current_relative_room_x as i32,
+                current_relative_room_y as i32,
+            );
 
         if data.terrain.contains_key(&new_room) {
             break Some((
                 current_relative_room_x,
                 current_relative_room_y,
-                Ref::map(Ref::clone(data), |data| &data.terrain.get(&new_room).unwrap().1),
+                Ref::map(Ref::clone(data), |data| {
+                    &data.terrain.get(&new_room).unwrap().1
+                }),
             ));
         }
     }
@@ -98,11 +104,17 @@ fn find_next_available_map_view_room<'a>(
                 break None;
             }
 
-            let new_room = start_room_name + (current_relative_room_x as i32, current_relative_room_y as i32);
+            let new_room = start_room_name
+                + (
+                    current_relative_room_x as i32,
+                    current_relative_room_y as i32,
+                );
 
             if data.map_views.contains_key(&new_room) {
                 debug!("found a map view for room {}", new_room);
-                break Some(Ref::map(Ref::clone(data), |data| &data.map_views.get(&new_room).unwrap().1));
+                break Some(Ref::map(Ref::clone(data), |data| {
+                    &data.map_views.get(&new_room).unwrap().1
+                }));
             }
         };
         let view = match room_info {
@@ -212,7 +224,6 @@ impl MapIteratorState {
     }
 }
 
-
 /// Logic put into separate function because it's useful both when creating an iterator
 /// and when advancing that iterator.
 #[inline(always)]
@@ -224,7 +235,6 @@ fn find_next_detail_view_room<'a>(
 ) -> Option<(i16, i16, Ref<'a, HashMap<String, KnownRoomObject>>)> {
     let selected_room = data.detail_view.as_ref().map(|x| x.0);
 
-
     match selected_room {
         Some(selected_room_name) => {
             let diff = selected_room_name - start_room_name;
@@ -233,7 +243,13 @@ fn find_next_detail_view_room<'a>(
             if x_diff < 0 || x_diff > horizontal_room_count || y_diff < 0 || y_diff > vertical_room_count {
                 None // cut out out-of-bounds rooms.
             } else {
-                Some((x_diff, y_diff, Ref::map(Ref::clone(data), |data| &data.detail_view.as_ref().unwrap().1)))
+                Some((
+                    x_diff,
+                    y_diff,
+                    Ref::map(Ref::clone(data), |data| {
+                        &data.detail_view.as_ref().unwrap().1
+                    }),
+                ))
             }
         }
         None => None,
@@ -396,7 +412,10 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                             id: render_id,
                             kind: PrimitiveKind::Rectangle { color: color },
                             scizzor: render_scizzor,
-                            rect: Rect::from_corners([x_pos, y_pos - visual_length], [x_pos + visual_length, y_pos]),
+                            rect: Rect::from_corners(
+                                [x_pos, y_pos - visual_length],
+                                [x_pos + visual_length, y_pos],
+                            ),
                         }
                     }
                 };
@@ -586,7 +605,10 @@ impl<'a> Iterator for ConstructedViewIterator<'a> {
                         color: KEEPER_COLOR,
                     },
                     scizzor: render_scizzor,
-                    rect: Rect::from_corners([x_pos, y_pos - visual_length], [x_pos + visual_length, y_pos]),
+                    rect: Rect::from_corners(
+                        [x_pos, y_pos - visual_length],
+                        [x_pos + visual_length, y_pos],
+                    ),
                 })
             }
             ConstructedViewIteratorState::Done => None,
@@ -617,48 +639,55 @@ pub fn render<'a>(
     let room_square_initial_screen_y = view_rect.y.start + offset.y_offset;
     let room_square_screen_edge_length = offset.room_size;
 
-
-    let state =
-        match find_next_available_room(&data, start_room_name, -1, 0, horizontal_room_count, vertical_room_count) {
-            Some((new_relative_room_x, new_relative_room_y, new_room_view)) => {
-                ConstructedViewIteratorState::TerrainRender {
-                    current_room_terrain: new_room_view,
+    let state = match find_next_available_room(
+        &data,
+        start_room_name,
+        -1,
+        0,
+        horizontal_room_count,
+        vertical_room_count,
+    ) {
+        Some((new_relative_room_x, new_relative_room_y, new_room_view)) => {
+            ConstructedViewIteratorState::TerrainRender {
+                current_room_terrain: new_room_view,
+                current_relative_room_x: new_relative_room_x,
+                current_relative_room_y: new_relative_room_y,
+                current_terrain_square: (0, 0),
+            }
+        }
+        None => match find_next_available_map_view_room(
+            &data,
+            start_room_name,
+            -1,
+            0,
+            horizontal_room_count,
+            vertical_room_count,
+        ) {
+            Some((new_relative_room_x, new_relative_room_y, new_map_view, new_state)) => {
+                ConstructedViewIteratorState::MapViewRender {
+                    current_room_view: new_map_view,
                     current_relative_room_x: new_relative_room_x,
                     current_relative_room_y: new_relative_room_y,
-                    current_terrain_square: (0, 0),
+                    inner_state: new_state,
                 }
             }
-            None => match find_next_available_map_view_room(
+            None => match find_next_detail_view_room(
                 &data,
                 start_room_name,
-                -1,
-                0,
                 horizontal_room_count,
                 vertical_room_count,
             ) {
-                Some((new_relative_room_x, new_relative_room_y, new_map_view, new_state)) => {
-                    ConstructedViewIteratorState::MapViewRender {
-                        current_room_view: new_map_view,
+                Some((new_relative_room_x, new_relative_room_y, new_view)) => {
+                    ConstructedViewIteratorState::RoomRender {
+                        current_room: new_view,
                         current_relative_room_x: new_relative_room_x,
                         current_relative_room_y: new_relative_room_y,
-                        inner_state: new_state,
                     }
                 }
-                None => {
-                    match find_next_detail_view_room(&data, start_room_name, horizontal_room_count, vertical_room_count)
-                    {
-                        Some((new_relative_room_x, new_relative_room_y, new_view)) => {
-                            ConstructedViewIteratorState::RoomRender {
-                                current_room: new_view,
-                                current_relative_room_x: new_relative_room_x,
-                                current_relative_room_y: new_relative_room_y,
-                            }
-                        }
-                        None => ConstructedViewIteratorState::Done,
-                    }
-                }
+                None => ConstructedViewIteratorState::Done,
             },
-        };
+        },
+    };
 
     ConstructedViewIterator {
         data: data,
