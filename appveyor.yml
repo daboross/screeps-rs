@@ -10,6 +10,11 @@ environment:
       TARGET_DESC: windows-x86_64
       RUST_VERSION: nightly
 
+matrix:
+    fast_finish: true
+    allow_failures:
+    - RUST_VERSION: nightly
+
 install:
 - curl -sSf -o rustup-init.exe https://win.rustup.rs/
 - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST_VERSION%
@@ -23,9 +28,9 @@ test_script:
 - if [%APPVEYOR_REPO_TAG%] == [false] (cargo test --verbose -p screeps-rs-ui --target %TARGET%)
 
 cache:
-- C:\Users\appveyor\.cargo\registry
 - target
 
+# Disable the appveyor build step so we can just build the rust project instead.
 build: off
 
 before_deploy:
