@@ -3,3 +3,6 @@ members = [
     "network",
     "ui",
 ]
+
+[replace]
+"glutin:0.11.0" = { git = "https://github.com/tomaka/glutin.git", rev = "9dedfa3a2d3c120a54f4b48501cdcd9684289a8f" }
