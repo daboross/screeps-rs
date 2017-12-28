@@ -1,5 +1,7 @@
 // impl Trait
 #![feature(conservative_impl_trait)]
+// generators (useful for rendering using conrod)
+#![feature(generators, generator_trait)]
 // Graphics
 
 #[macro_use]
