@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::cell::Ref;
 
+use glium;
 use conrod::{self, widget, Rect};
 use conrod::render::{Primitive, PrimitiveWalker};
 
@@ -11,8 +12,10 @@ mod macros;
 pub mod constants;
 mod map_view;
 mod types;
+pub mod render_cache;
 
 pub use self::types::MapViewOffset;
+pub use self::render_cache::RenderCache;
 
 #[derive(Clone, Debug)]
 pub enum AdditionalRenderType {
@@ -56,7 +59,7 @@ struct BorrowedRender<'a> {
 
 impl<'a> BorrowedRender<'a> {
     #[inline]
-    pub fn into_primitives(self) -> impl Iterator<Item = Primitive<'static>> + 'a {
+    pub fn into_primitives(self, image_cache: &'a RenderCache) -> impl Iterator<Item = Primitive<'static>> + 'a {
         let parent_rect = self.view_rect;
         let parent_scizzor = self.scizzor;
 
@@ -74,7 +77,9 @@ impl<'a> BorrowedRender<'a> {
             .unwrap_or(parent_scizzor);
 
         match draw_type {
-            BorrowedRenderType::MapView(parameters) => map_view::render(replace, parent_rect, scizzor, parameters),
+            BorrowedRenderType::MapView(parameters) => {
+                map_view::render(replace, parent_rect, scizzor, image_cache, parameters)
+            }
         }
     }
 }
@@ -92,6 +97,7 @@ impl AdditionalRender {
             _phantom: PhantomData,
         }
     }
+
     pub fn ready(self, ui: &conrod::Ui) -> Option<ReadyRender> {
         Some(ReadyRender {
             view_rect: ui.rect_of(self.replace)?,
@@ -102,8 +108,23 @@ impl AdditionalRender {
 }
 
 impl ReadyRender {
+    pub fn prepare_images(&self, display: &glium::Display, image_cache: &mut RenderCache) {
+        match self.inner.draw_type {
+            AdditionalRenderType::MapView((rooms, ref cache, _)) => {
+                let cache = cache.borrow();
+                for room_name in rooms {
+                    if let Some(&(_, ref terrain)) = cache.terrain.get(&room_name) {
+                        image_cache.get_or_generate_terrain(display, room_name, terrain);
+                    }
+                }
+                // TODO: do this less frequently!
+                image_cache.invalidate_outside_of(rooms.start - (2, 2), rooms.end + (2, 2))
+            }
+        }
+    }
+
     #[inline]
-    pub fn render_with<T, F>(&self, walker: T, render_with: F)
+    pub fn render_with<T, F>(&self, walker: T, image_cache: &RenderCache, render_with: F)
     where
         T: PrimitiveWalker,
         F: RenderPipelineFinish,
@@ -119,7 +140,7 @@ impl ReadyRender {
             },
             view_rect: self.view_rect,
             scizzor: self.scizzor,
-        }.into_primitives();
+        }.into_primitives(image_cache);
 
         // WalkerAdapter(gen, PhantomData)
         render_with.render_with(MergedPrimitives {

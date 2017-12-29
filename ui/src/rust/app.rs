@@ -10,7 +10,7 @@ use network_integration::{GlutinNotify, NetworkCache, NetworkHandler};
 pub struct App {
     pub ui: conrod::Ui,
     pub display: glium::Display,
-    pub image_map: conrod::image::Map<glium::texture::Texture2d>,
+    pub image_cache: rendering::RenderCache,
     pub ids: layout::Ids,
     pub renderer: glium_backend::Renderer,
     pub net_cache: MemCache,
@@ -24,7 +24,7 @@ pub struct App {
 pub struct AppCell<'a, 'b: 'a, 'c> {
     pub ui: &'a mut conrod::UiCell<'b>,
     pub display: &'a glium::Display,
-    pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
+    pub image_cache: &'a mut rendering::RenderCache,
     pub ids: &'a mut layout::Ids,
     pub renderer: &'a mut glium_backend::Renderer,
     pub net_cache: NetworkCache<'a>,
@@ -47,7 +47,7 @@ impl App {
         let mut ui = conrod::UiBuilder::new([width as f64, height as f64]).build();
         let renderer =
             glium_backend::Renderer::new(&window).expect("expected loading conrod glium renderer to succeed.");
-        let image_map = conrod::image::Map::new();
+        let image_cache = rendering::RenderCache::new();
         let ids = layout::Ids::new(&mut ui.widget_id_generator());
 
         let notify = GlutinNotify::from(Arc::new(events.create_proxy()));
@@ -55,7 +55,7 @@ impl App {
         App {
             ui: ui,
             display: window,
-            image_map: image_map,
+            image_cache: image_cache,
             ids: ids,
             renderer: renderer,
             net_cache: MemCache::new(),
@@ -73,7 +73,7 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
     pub fn cell(
         cell: &'a mut conrod::UiCell<'b>,
         display: &'a glium::Display,
-        image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
+        image_cache: &'a mut rendering::RenderCache,
         ids: &'a mut layout::Ids,
         renderer: &'a mut glium_backend::Renderer,
         net_cache: &'a mut MemCache,
@@ -84,7 +84,7 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
         AppCell {
             ui: cell,
             display: display,
-            image_map: image_map,
+            image_cache: image_cache,
             ids: ids,
             renderer: renderer,
             net_cache: net_cache.align(network_handler, |x| {

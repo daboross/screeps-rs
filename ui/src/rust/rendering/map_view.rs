@@ -2,8 +2,9 @@ use std::cell::Ref;
 use std::collections::HashMap;
 use std::ops::{Generator, GeneratorState};
 
-use conrod::{widget, Rect};
+use conrod::{self, widget, Rect};
 use conrod::render::{Primitive, PrimitiveKind};
+use conrod::image::Id as ImageId;
 use screeps_api::RoomName;
 use screeps_api::endpoints::room_terrain::{TerrainGrid, TerrainType};
 use screeps_api::websocket::RoomMapViewUpdate;
@@ -13,12 +14,14 @@ use screeps_rs_network::{MapCacheData, SelectedRooms};
 
 use super::constants::*;
 use super::types::{IterAdapter, MapViewOffset};
+use super::render_cache::RenderCache;
 
 #[derive(Copy, Clone)]
-struct RenderData {
+struct RenderData<'a> {
     id: widget::Id,
     scizzor: Rect,
     offset: MapViewOffset,
+    image_cache: &'a RenderCache,
     start_room_screen_pos: (f64, f64),
 }
 
@@ -26,12 +29,14 @@ pub fn render<'a>(
     id: widget::Id,
     view_rect: Rect,
     scizzor: Rect,
+    image_cache: &'a RenderCache,
     (selected, data, offset): (SelectedRooms, Ref<'a, MapCacheData>, MapViewOffset),
 ) -> impl Iterator<Item = Primitive<'static>> + 'a {
     let render_data = RenderData {
         id,
         scizzor,
         offset,
+        image_cache: image_cache,
         start_room_screen_pos: (
             view_rect.x.start + offset.x_offset,
             view_rect.y.start + offset.y_offset,
@@ -48,19 +53,28 @@ pub fn render<'a>(
             for relative_room_y in 0..vertical_room_count {
                 let current_name = start_room_name + (relative_room_x, relative_room_y);
 
-                // if we can render this room
-                if data.terrain.contains_key(&current_name) {
-                    // use Ref trick to get an "owned" reference to the specific sub-bit of the data.
-                    let terrain = Ref::map(Ref::clone(&data), |data| {
-                        &data.terrain.get(&current_name).unwrap().1
-                    });
-                    yield_from!(render_terrain_of(
+                if let Some(image_id) = render_data.image_cache.get_terrain(current_name) {
+                    yield_from!(render_room_image(
                         render_data,
                         relative_room_x,
                         relative_room_y,
-                        terrain,
+                        image_id,
                     ));
                 }
+
+                // // if we can render this room
+                // if data.terrain.contains_key(&current_name) {
+                //     // use Ref trick to get an "owned" reference to the specific sub-bit of the data.
+                //     let terrain = Ref::map(Ref::clone(&data), |data| {
+                //         &data.terrain.get(&current_name).unwrap().1
+                //     });
+                //     yield_from!(render_terrain_of(
+                //         render_data,
+                //         relative_room_x,
+                //         relative_room_y,
+                //         terrain,
+                //     ));
+                // }
             }
         }
 
@@ -101,8 +115,33 @@ pub fn render<'a>(
     IterAdapter(gen).fuse() // fuse required for generator safety
 }
 
+fn terrain_color(terrain_type: TerrainType) -> conrod::Color {
+    match terrain_type {
+        TerrainType::Plains => PLAINS_COLOR,
+        TerrainType::Swamp => SWAMP_COLOR,
+        TerrainType::SwampyWall | TerrainType::Wall => WALL_COLOR,
+    }
+}
+
+use glium::texture::Texture2dDataSource;
+
+pub fn make_terrain_texture(terrain: &TerrainGrid) -> impl Texture2dDataSource<'static> {
+    terrain
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|&terrain_type| {
+                    let rgb = terrain_color(terrain_type).to_rgb();
+                    (rgb.0, rgb.1, rgb.2, rgb.3)
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+}
+
+#[allow(dead_code)]
 fn render_terrain_of<'a>(
-    data: RenderData,
+    data: RenderData<'a>,
     current_relative_room_x: i32,
     current_relative_room_y: i32,
     terrain: Ref<'a, TerrainGrid>,
@@ -123,11 +162,7 @@ fn render_terrain_of<'a>(
                 yield Primitive {
                     id: data.id,
                     kind: PrimitiveKind::Rectangle {
-                        color: match terrain_type {
-                            TerrainType::Plains => PLAINS_COLOR,
-                            TerrainType::Swamp => SWAMP_COLOR,
-                            TerrainType::SwampyWall | TerrainType::Wall => WALL_COLOR,
-                        },
+                        color: terrain_color(terrain_type),
                     },
                     scizzor: data.scizzor,
                     rect: Rect::from_corners(
@@ -140,8 +175,33 @@ fn render_terrain_of<'a>(
     }
 }
 
+fn render_room_image<'a>(
+    data: RenderData<'a>,
+    current_relative_room_x: i32,
+    current_relative_room_y: i32,
+    image_id: ImageId,
+) -> impl Generator<Yield = Primitive<'static>, Return = ()> + 'a {
+    move || {
+        let x_pos = data.start_room_screen_pos.0 + data.offset.room_size * (current_relative_room_x as f64);
+        let y_pos = data.start_room_screen_pos.1 + data.offset.room_size * (current_relative_room_y as f64);
+        let end_x = x_pos + data.offset.room_size;
+        let end_y = y_pos + data.offset.room_size;
+
+        yield Primitive {
+            id: data.id,
+            kind: PrimitiveKind::Image {
+                image_id,
+                color: None,
+                source_rect: None,
+            },
+            scizzor: data.scizzor,
+            rect: Rect::from_corners([x_pos, y_pos], [end_x, end_y]),
+        }
+    }
+}
+
 fn render_map_view_of<'a>(
-    data: RenderData,
+    data: RenderData<'a>,
     current_relative_room_x: i32,
     current_relative_room_y: i32,
     map_view: Ref<'a, RoomMapViewUpdate>,
@@ -237,7 +297,7 @@ fn render_map_view_of<'a>(
 }
 
 fn render_room<'a>(
-    data: RenderData,
+    data: RenderData<'a>,
     current_relative_room_x: i32,
     current_relative_room_y: i32,
     _room_objects: Ref<'a, HashMap<String, KnownRoomObject>>,

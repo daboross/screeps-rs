@@ -2,7 +2,7 @@ use glium::Surface;
 use app::{App, AppCell};
 use super::glutin_glue::{Event, EventLoop};
 
-use {conrod, glium, glutin, layout, ui_state, glium_backend};
+use {conrod, glium, glium_backend, glutin, layout, rendering, ui_state};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
     let mut events = EventLoop::new(events);
@@ -66,7 +66,7 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     let App {
                         ref mut ui,
                         ref display,
-                        ref mut image_map,
+                        ref mut image_cache,
                         ref mut ids,
                         ref mut renderer,
                         ref mut net_cache,
@@ -80,7 +80,7 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     let mut cell = AppCell::cell(
                         &mut ui_cell,
                         display,
-                        image_map,
+                        image_cache,
                         ids,
                         renderer,
                         net_cache,
@@ -93,15 +93,22 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     layout::create_ui(&mut cell, &mut state);
                 }
 
-                let ready_additional_render = additional_render.map(|r| r.ready(&app.ui));
+                let ready_additional_render = additional_render.map(|r| {
+                    r.ready(&app.ui)
+                        .expect("expected custom render widget to exist")
+                });
                 // Render the `Ui` and then display it on the screen.
                 if let Some(mut primitives) = app.ui.draw_if_changed() {
                     use rendering::RenderPipelineFinish;
                     use layout::BACKGROUND_RGB;
 
+                    if let Some(renderer) = ready_additional_render.as_ref() {
+                        renderer.prepare_images(&app.display, &mut app.image_cache);
+                    }
+
                     struct RenderFinish<'a> {
-                        display: &'a mut glium::Display,
-                        image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
+                        display: &'a glium::Display,
+                        image_map: &'a conrod::image::Map<rendering::render_cache::Texture>,
                         renderer: &'a mut glium_backend::Renderer,
                     }
                     impl<'a> RenderPipelineFinish for RenderFinish<'a> {
@@ -120,14 +127,13 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     }
                     {
                         let last_step = RenderFinish {
-                            display: &mut app.display,
-                            image_map: &mut app.image_map,
+                            display: &app.display,
+                            image_map: &app.image_cache.image_map,
                             renderer: &mut app.renderer,
                         };
 
                         match ready_additional_render {
-                            Some(mut r) => r.expect("expected custom render widget to exist")
-                                .render_with(primitives, last_step),
+                            Some(mut r) => r.render_with(primitives, &app.image_cache, last_step),
                             None => last_step.render_with(primitives),
                         }
                     }
@@ -135,7 +141,7 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     let mut target = app.display.draw();
                     target.clear_color(BACKGROUND_RGB[0], BACKGROUND_RGB[1], BACKGROUND_RGB[2], 1.0);
                     app.renderer
-                        .draw(&app.display, &mut target, &app.image_map)
+                        .draw(&app.display, &mut target, &app.image_cache.image_map)
                         .expect("expected drawing GUI to display to succeed");
                     target
                         .finish()
