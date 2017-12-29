@@ -2,7 +2,7 @@ use glium::Surface;
 use app::{App, AppCell};
 use super::glutin_glue::{Event, EventLoop};
 
-use {conrod, glium, glutin, layout, ui_state};
+use {conrod, glium, glutin, layout, ui_state, glium_backend};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
     let mut events = EventLoop::new(events);
@@ -102,7 +102,7 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     struct RenderFinish<'a> {
                         display: &'a mut glium::Display,
                         image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
-                        renderer: &'a mut conrod::backend::glium::Renderer,
+                        renderer: &'a mut glium_backend::Renderer,
                     }
                     impl<'a> RenderPipelineFinish for RenderFinish<'a> {
                         fn render_with<T>(self, walker: T)

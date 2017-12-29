@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use screeps_rs_network::{self, MemCache};
 
-use {conrod, glium, glutin, layout, rendering};
+use {conrod, glium, glium_backend, glutin, layout, rendering};
 
 use network_integration::{GlutinNotify, NetworkCache, NetworkHandler};
 
@@ -12,7 +12,7 @@ pub struct App {
     pub display: glium::Display,
     pub image_map: conrod::image::Map<glium::texture::Texture2d>,
     pub ids: layout::Ids,
-    pub renderer: conrod::backend::glium::Renderer,
+    pub renderer: glium_backend::Renderer,
     pub net_cache: MemCache,
     pub network_handler: NetworkHandler,
     pub notify: GlutinNotify,
@@ -26,7 +26,7 @@ pub struct AppCell<'a, 'b: 'a, 'c> {
     pub display: &'a glium::Display,
     pub image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
     pub ids: &'a mut layout::Ids,
-    pub renderer: &'a mut conrod::backend::glium::Renderer,
+    pub renderer: &'a mut glium_backend::Renderer,
     pub net_cache: NetworkCache<'a>,
     pub additional_rendering: &'c mut Option<rendering::AdditionalRender>,
     pub notify: &'a GlutinNotify,
@@ -46,7 +46,7 @@ impl App {
         // Create UI.
         let mut ui = conrod::UiBuilder::new([width as f64, height as f64]).build();
         let renderer =
-            conrod::backend::glium::Renderer::new(&window).expect("expected loading conrod glium renderer to succeed.");
+            glium_backend::Renderer::new(&window).expect("expected loading conrod glium renderer to succeed.");
         let image_map = conrod::image::Map::new();
         let ids = layout::Ids::new(&mut ui.widget_id_generator());
 
@@ -75,7 +75,7 @@ impl<'a, 'b: 'a, 'c> AppCell<'a, 'b, 'c> {
         display: &'a glium::Display,
         image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
         ids: &'a mut layout::Ids,
-        renderer: &'a mut conrod::backend::glium::Renderer,
+        renderer: &'a mut glium_backend::Renderer,
         net_cache: &'a mut MemCache,
         network_handler: &'a mut NetworkHandler,
         additional_rendering: &'c mut Option<rendering::AdditionalRender>,

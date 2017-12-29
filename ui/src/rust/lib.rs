@@ -8,6 +8,7 @@
 extern crate conrod;
 #[macro_use]
 extern crate conrod_derive;
+#[macro_use]
 extern crate glium;
 extern crate glutin;
 extern crate rusttype;
@@ -33,6 +34,7 @@ pub mod network_integration;
 pub mod window_management;
 pub mod widgets;
 mod map_view_utils;
+mod glium_backend;
 
 pub use app::App;
 pub use network_integration::NetworkHandler;
