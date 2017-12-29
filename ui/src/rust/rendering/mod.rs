@@ -1,15 +1,18 @@
 use std::marker::PhantomData;
 use std::cell::Ref;
 
-use conrod::widget;
+use conrod::{self, widget, Rect};
 use conrod::render::{Primitive, PrimitiveWalker};
 
 use screeps_rs_network::{MapCache, MapCacheData, SelectedRooms};
 
+#[macro_use]
+mod macros;
 pub mod constants;
 mod map_view;
+mod types;
 
-pub use self::map_view::MapViewOffset;
+pub use self::types::MapViewOffset;
 
 #[derive(Clone, Debug)]
 pub enum AdditionalRenderType {
@@ -37,50 +40,25 @@ pub struct AdditionalRender {
     _phantom: PhantomData<()>,
 }
 
+pub struct ReadyRender {
+    view_rect: Rect,
+    scizzor: Rect,
+    inner: AdditionalRender,
+}
+
 #[derive(Clone)]
 struct BorrowedRender<'a> {
     replace: widget::Id,
     draw_type: BorrowedRenderType<'a>,
-}
-
-pub struct MergedPrimitives<'a, T: Sized> {
-    custom: Option<BorrowedRender<'a>>,
-    currently_replacing: Option<Box<Iterator<Item = Primitive<'static>> + 'a>>,
-    walker: T,
-}
-
-impl AdditionalRender {
-    #[inline(always)]
-    pub fn map_view(replace: widget::Id, rooms: SelectedRooms, cache: MapCache, offset: MapViewOffset) -> Self {
-        AdditionalRender {
-            replace: replace,
-            draw_type: AdditionalRenderType::MapView((rooms, cache, offset)),
-            _phantom: PhantomData,
-        }
-    }
-
-    #[inline]
-    pub fn merged_walker<T: PrimitiveWalker>(&self, walker: T) -> MergedPrimitives<T> {
-        MergedPrimitives {
-            custom: Some(BorrowedRender {
-                replace: self.replace,
-                draw_type: match self.draw_type {
-                    AdditionalRenderType::MapView((rooms, ref cache, offset)) => {
-                        BorrowedRenderType::MapView((rooms, cache.borrow(), offset))
-                    }
-                },
-            }),
-            currently_replacing: None,
-            walker: walker,
-        }
-    }
+    view_rect: Rect,
+    scizzor: Rect,
 }
 
 impl<'a> BorrowedRender<'a> {
     #[inline]
-    pub fn into_primitives(self, replacing_primitive: &Primitive) -> Box<Iterator<Item = Primitive<'static>> + 'a> {
-        let parent_rect = replacing_primitive.rect;
-        let parent_scizzor = replacing_primitive.scizzor;
+    pub fn into_primitives(self) -> impl Iterator<Item = Primitive<'static>> + 'a {
+        let parent_rect = self.view_rect;
+        let parent_scizzor = self.scizzor;
 
         debug!(
             "into_primitives: {{parent_rect: {:?}, parent_scizzor: {:?}}}",
@@ -96,14 +74,75 @@ impl<'a> BorrowedRender<'a> {
             .unwrap_or(parent_scizzor);
 
         match draw_type {
-            BorrowedRenderType::MapView(parameters) => {
-                Box::new(map_view::render(replace, parent_rect, scizzor, parameters))
-            }
+            BorrowedRenderType::MapView(parameters) => map_view::render(replace, parent_rect, scizzor, parameters),
         }
     }
 }
 
-impl<'a, T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<'a, T> {
+pub trait RenderPipelineFinish {
+    fn render_with<T: PrimitiveWalker>(self, T);
+}
+
+impl AdditionalRender {
+    #[inline(always)]
+    pub fn map_view(replace: widget::Id, rooms: SelectedRooms, cache: MapCache, offset: MapViewOffset) -> Self {
+        AdditionalRender {
+            replace: replace,
+            draw_type: AdditionalRenderType::MapView((rooms, cache, offset)),
+            _phantom: PhantomData,
+        }
+    }
+    pub fn ready(self, ui: &conrod::Ui) -> Option<ReadyRender> {
+        Some(ReadyRender {
+            view_rect: ui.rect_of(self.replace)?,
+            scizzor: ui.visible_area(self.replace)?,
+            inner: self,
+        })
+    }
+}
+
+impl ReadyRender {
+    #[inline]
+    pub fn render_with<T, F>(&self, walker: T, render_with: F)
+    where
+        T: PrimitiveWalker,
+        F: RenderPipelineFinish,
+    {
+        let replace = self.inner.replace;
+
+        let custom_gen = BorrowedRender {
+            replace: self.inner.replace,
+            draw_type: match self.inner.draw_type {
+                AdditionalRenderType::MapView((rooms, ref cache, offset)) => {
+                    BorrowedRenderType::MapView((rooms, cache.borrow(), offset))
+                }
+            },
+            view_rect: self.view_rect,
+            scizzor: self.scizzor,
+        }.into_primitives();
+
+        // WalkerAdapter(gen, PhantomData)
+        render_with.render_with(MergedPrimitives {
+            replace: replace,
+            custom: Some(custom_gen),
+            currently_replacing: None,
+            walker: walker,
+        })
+    }
+}
+
+pub struct MergedPrimitives<T, U> {
+    replace: widget::Id,
+    custom: Option<U>,
+    currently_replacing: Option<U>,
+    walker: T,
+}
+
+impl<T, U> PrimitiveWalker for MergedPrimitives<T, U>
+where
+    T: PrimitiveWalker,
+    U: Iterator<Item = Primitive<'static>>,
+{
     #[inline(always)]
     fn next_primitive(&mut self) -> Option<Primitive> {
         if let Some(ref mut iter) = self.currently_replacing {
@@ -116,15 +155,12 @@ impl<'a, T: PrimitiveWalker> PrimitiveWalker for MergedPrimitives<'a, T> {
         }
 
         match self.walker.next_primitive() {
-            Some(p) => if Some(&p.id) == self.custom.as_ref().map(|c| &c.replace) {
-                debug!("found correct id");
-                let c = self.custom.clone().unwrap();
-
-                let mut iter = c.into_primitives(&p);
-                let first = iter.next();
-                self.currently_replacing = Some(iter);
-
-                Some(first.unwrap_or(p))
+            Some(p) => if p.id == self.replace {
+                self.currently_replacing = self.custom.take();
+                match self.currently_replacing.as_mut().and_then(|c| c.next()) {
+                    Some(first_replace) => Some(first_replace),
+                    None => Some(p),
+                }
             } else {
                 Some(p)
             },

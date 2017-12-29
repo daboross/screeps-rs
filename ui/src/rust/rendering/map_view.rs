@@ -12,53 +12,7 @@ use screeps_api::websocket::types::room::objects::KnownRoomObject;
 use screeps_rs_network::{MapCacheData, SelectedRooms};
 
 use super::constants::*;
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct MapViewOffset {
-    x_offset: f64,
-    y_offset: f64,
-    room_size: f64,
-}
-
-impl MapViewOffset {
-    #[inline(always)]
-    pub fn new(x: f64, y: f64, size: f64) -> Self {
-        MapViewOffset {
-            x_offset: x,
-            y_offset: y,
-            room_size: size,
-        }
-    }
-}
-
-struct IterAdapter<G>(G);
-impl<G> Iterator for IterAdapter<G>
-where
-    G: Generator<Return = ()>,
-{
-    type Item = G::Yield;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.0.resume() {
-            GeneratorState::Yielded(item) => Some(item),
-            GeneratorState::Complete(()) => None,
-        }
-    }
-}
-
-macro_rules! yield_from {
-    ($g:expr) => ({
-        let mut gen = $g;
-        loop {
-            let state = gen.resume();
-
-            match state {
-                GeneratorState::Yielded(v) => yield v,
-                GeneratorState::Complete(r) => break r,
-            }
-        }
-    })
-}
+use super::types::{IterAdapter, MapViewOffset};
 
 #[derive(Copy, Clone)]
 struct RenderData {
@@ -67,15 +21,6 @@ struct RenderData {
     offset: MapViewOffset,
     start_room_screen_pos: (f64, f64),
 }
-
-// Special note here: TODO for performance!
-//
-// Right now, we're doing two levels of dynamic calls for ever rendered square.
-// Once to our Box<Iterator<Item = Primitive<'static>>, and once to our generator state.
-//
-// We could significantly speed this up if we have instead of a 'get primitive walker' method,
-// a 'render with newly created primitive walker' method, all the way down the chain. Then it'd be
-// map_view.rs which calls the renderer, and it would be specialized and hopefully more optimize-able.
 
 pub fn render<'a>(
     id: widget::Id,

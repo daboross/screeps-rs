@@ -2,7 +2,7 @@ use glium::Surface;
 use app::{App, AppCell};
 use super::glutin_glue::{Event, EventLoop};
 
-use {conrod, glutin, layout, ui_state};
+use {conrod, glium, glutin, layout, ui_state};
 
 pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
     let mut events = EventLoop::new(events);
@@ -93,14 +93,43 @@ pub fn main_window_loop(events: glutin::EventsLoop, mut app: App) {
                     layout::create_ui(&mut cell, &mut state);
                 }
 
+                let ready_additional_render = additional_render.map(|r| r.ready(&app.ui));
                 // Render the `Ui` and then display it on the screen.
-                if let Some(primitives) = app.ui.draw_if_changed() {
+                if let Some(mut primitives) = app.ui.draw_if_changed() {
+                    use rendering::RenderPipelineFinish;
                     use layout::BACKGROUND_RGB;
 
-                    match additional_render {
-                        Some(r) => app.renderer
-                            .fill(&app.display, r.merged_walker(primitives), &app.image_map),
-                        None => app.renderer.fill(&app.display, primitives, &app.image_map),
+                    struct RenderFinish<'a> {
+                        display: &'a mut glium::Display,
+                        image_map: &'a mut conrod::image::Map<glium::texture::Texture2d>,
+                        renderer: &'a mut conrod::backend::glium::Renderer,
+                    }
+                    impl<'a> RenderPipelineFinish for RenderFinish<'a> {
+                        fn render_with<T>(self, walker: T)
+                        where
+                            T: conrod::render::PrimitiveWalker,
+                        {
+                            let RenderFinish {
+                                display,
+                                image_map,
+                                renderer,
+                            } = self;
+
+                            renderer.fill(&*display, walker, &*image_map);
+                        }
+                    }
+                    {
+                        let last_step = RenderFinish {
+                            display: &mut app.display,
+                            image_map: &mut app.image_map,
+                            renderer: &mut app.renderer,
+                        };
+
+                        match ready_additional_render {
+                            Some(mut r) => r.expect("expected custom render widget to exist")
+                                .render_with(primitives, last_step),
+                            None => last_step.render_with(primitives),
+                        }
                     }
 
                     let mut target = app.display.draw();
