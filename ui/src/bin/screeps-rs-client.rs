@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate clap;
 extern crate screeps_rs_ui;
 
@@ -5,8 +6,8 @@ use clap::{App, Arg};
 
 fn main() {
     let matches = App::new("screeps-rs")
-        .version("0.0.1")
-        .author("David Ross <daboross@daboross.net>")
+        .version(crate_version!())
+        .author(&*crate_authors!().replace(":", "\n"))
         .about("Native client for the Screeps JavaScript MMO")
         .arg(
             Arg::with_name("verbose")
@@ -26,13 +27,14 @@ fn main() {
                      For example, `--debug screeps_rs_ui::ui` will enable verbose logging for UI related code.\n\
                      \n\
                      Common modules you can use:\n\
-                     - screeps_rs_network    app network calling and result caching\n\
-                     - screeps_rs_ui         app glue and UI\n\
-                     - screeps_rs_ui::ui     app UI\n\
-                     - screeps_api           network result parsing\n\
-                     - screeps_api::sockets  websocket network result parsing\n\
-                     - hyper                 HTTP client\n\
-                     - ws                    websocket client",
+                     - screeps_rs_network                   app network calling and result caching\n\
+                     - screeps_rs_ui                        app glue and UI\n\
+                     - screeps_rs_ui::window_management     event glue\n\
+                     - screeps_rs_ui::rendering             game state rendering\n\
+                     - screeps_api                          network result parsing\n\
+                     - screeps_api::sockets                 websocket network result parsing\n\
+                     - hyper                                HTTP client\n\
+                     - ws                                   websocket client",
                 )
                 .takes_value(true)
                 .multiple(true),
