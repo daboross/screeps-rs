@@ -117,8 +117,7 @@ impl ReadyRender {
                         image_cache.get_or_generate_terrain(display, room_name, terrain);
                     }
                 }
-                // TODO: do this less frequently!
-                image_cache.invalidate_outside_of(rooms.start - (2, 2), rooms.end + (2, 2))
+                image_cache.invalidation_check(rooms.start - (10, 10), rooms.end + (10, 10))
             }
         }
     }

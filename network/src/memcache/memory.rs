@@ -207,13 +207,20 @@ impl MemCache {
         }
     }
 
-    pub fn align<'a, T, F>(&'a mut self, handler: &'a mut T, mut error_callback: F) -> NetworkedMemCache<'a, T>
+    pub fn align<'a, T, F, E>(
+        &'a mut self,
+        handler: &'a mut T,
+        mut error_callback: F,
+        mut additional_event_receiver: E,
+    ) -> NetworkedMemCache<'a, T>
     where
         T: ScreepsConnection,
         F: FnMut(ErrorEvent),
+        E: FnMut(&NetworkEvent),
     {
         while let Some(evt) = handler.poll() {
             debug!("[cache] Got event {:?}", evt);
+            additional_event_receiver(&evt);
             if let Err(e) = self.event(evt) {
                 if let ErrorEvent::NotLoggedIn = e {
                     self.login.reset();
