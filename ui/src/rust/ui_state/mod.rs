@@ -149,12 +149,14 @@ impl State {
         match event {
             Event::LeftMenuOpened => match self.screen_state {
                 ScreenState::Map(ref mut state) => {
+                    debug!("left menu opened");
                     state.panels.left = MenuState::Open;
                 }
                 _ => (),
             },
             Event::LeftMenuClosed => match self.screen_state {
                 ScreenState::Map(ref mut state) => {
+                    debug!("left menu closed");
                     state.panels.left = MenuState::Closed;
                 }
                 _ => (),
@@ -163,27 +165,43 @@ impl State {
             //     state.shard = new_shard;
             // },
             Event::LoginUsername(new_username) => if let ScreenState::Login(ref mut state) = self.screen_state {
+                debug!("login username changed");
                 state.username = new_username;
             },
             Event::LoginPassword(new_password) => if let ScreenState::Login(ref mut state) = self.screen_state {
+                debug!("login password changed");
                 state.password = new_password;
             },
             Event::LoginSubmitted(at) => if let ScreenState::Login(ref mut state) = self.screen_state {
+                debug!("login submitted");
                 state.pending_since = Some(at);
             },
             Event::MapPan { view_rect, event } => if let ScreenState::Map(ref mut state) = self.screen_state {
+                debug!("map view panned");
                 state.map_scroll.pan_event(view_rect, event);
             },
             Event::MapZoom { view_rect, event } => if let ScreenState::Map(ref mut state) = self.screen_state {
+                debug!("map view zoomed");
                 state.map_scroll.zoom_event(view_rect, event);
             },
             Event::MapClick { view_rect, event } => if let ScreenState::Map(ref mut state) = self.screen_state {
+                debug!("map view MapClickEvent");
                 state.map_scroll.click_event(view_rect, event);
             },
-            Event::NowLoggedOut => self.screen_state = ScreenState::Login(LoginScreenState::default()),
-            Event::LoggedInMapView => self.screen_state = ScreenState::Map(MapScreenState::new()),
-            Event::Exit => self.screen_state = ScreenState::Exit,
+            Event::NowLoggedOut => {
+                debug!("logged out");
+                self.screen_state = ScreenState::Login(LoginScreenState::default())
+            }
+            Event::LoggedInMapView => {
+                debug!("logged in");
+                self.screen_state = ScreenState::Map(MapScreenState::new())
+            }
+            Event::Exit => {
+                debug!("exited");
+                self.screen_state = ScreenState::Exit
+            }
             Event::SwitchShard(shard) => if let ScreenState::Map(ref mut state) = self.screen_state {
+                debug!("switched shard");
                 state.shard = shard;
             },
         }

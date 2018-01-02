@@ -254,15 +254,18 @@ mod room_view_widget {
             for event in input.events() {
                 match event {
                     Event::Drag(drag) => if drag.button == MouseButton::Left {
+                        debug!("drag update");
                         update.scrolled_map_x -= drag.delta_xy[0];
                         update.scrolled_map_y -= drag.delta_xy[1];
                         changed = true;
                     },
                     Event::Scroll(scroll) => if scroll.modifiers.is_empty() {
+                        debug!("scroll update");
                         update.zoom_change -= scroll.y;
                         changed = true;
                     },
                     Event::Click(click) => if click.button == MouseButton::Left {
+                        debug!("click update");
                         update.clicked = Some((click.xy[0], click.xy[1]));
                     },
                     _ => {}
