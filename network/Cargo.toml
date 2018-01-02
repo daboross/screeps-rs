@@ -20,7 +20,7 @@ tokio-core = "0.1"
 hyper = "0.11"
 hyper-tls = "0.1"
 websocket = "0.20"
-screeps-api = { version = "0.3", default-features = false }
+screeps-api = { version = "0.4", default-features = false }
 # Caching
 time = "0.1"
 bincode = "0.9"

@@ -1218,7 +1218,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "screeps-api"
-version = "0.3.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "arrayvec 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1248,7 +1248,7 @@ dependencies = [
  "hyper-tls 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "screeps-api 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "screeps-api 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1270,7 +1270,7 @@ dependencies = [
  "glutin 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "screeps-api 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "screeps-api 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "screeps-rs-network 0.1.0",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2030,7 +2030,7 @@ dependencies = [
 "checksum schannel 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "4330c2e874379fbd28fa67ba43239dbe8c7fb00662ceb1078bd37474f08bf5ce"
 "checksum scoped-tls 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f417c22df063e9450888a7561788e9bd46d3bb3c1466435b4eccb903807f147d"
 "checksum scopeguard 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "94258f53601af11e6a49f722422f6e3425c52b06245a5cf9bc09908b174f5e27"
-"checksum screeps-api 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7d9b14b011573b6fa41e95f0c220debce0240b97dffa11f3e5bc5c9496ff8d12"
+"checksum screeps-api 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cb72a1ce95a3e4359ee96df766bfab358fff3f2f3884717818240d41c5bc4411"
 "checksum secur32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3f412dfa83308d893101dd59c10d6fda8283465976c28c287c5c855bf8d216bc"
 "checksum security-framework 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)" = "dfa44ee9c54ce5eecc9de7d5acbad112ee58755239381f687e564004ba4a2332"
 "checksum security-framework-sys 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)" = "5421621e836278a0b139268f36eee0dc7e389b784dc3f79d8f11aabadf41bead"

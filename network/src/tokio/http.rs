@@ -132,23 +132,22 @@ where
                             if let Err(e) = other {
                                 warn!("error occurred fetching terrain cache: {}", e);
                             }
-                            Box::new(
-                                self.client
-                                    .room_terrain("shard0", room_name.to_string())
-                                    .map(|data| data.terrain)
-                                    .then(move |result| {
-                                        if let Ok(ref data) = result {
-                                            self.handle
-                                                .spawn(self.disk_cache.set_terrain(room_name, data).then(|result| {
-                                                    if let Err(e) = result {
-                                                        warn!("error occurred storing to terrain cache: {}", e);
-                                                    }
-                                                    Ok(())
-                                                }));
-                                        }
-                                        future::ok((self, result))
-                                    }),
-                            ) as Box<Future<Item = _, Error = _>>
+                            let request = self.client.room_terrain(
+                                self.settings.borrow().shard.as_ref().map(|s| &**s),
+                                room_name.to_string(),
+                            );
+                            Box::new(request.map(|data| data.terrain).then(move |result| {
+                                if let Ok(ref data) = result {
+                                    self.handle
+                                        .spawn(self.disk_cache.set_terrain(room_name, data).then(|result| {
+                                            if let Err(e) = result {
+                                                warn!("error occurred storing to terrain cache: {}", e);
+                                            }
+                                            Ok(())
+                                        }));
+                                }
+                                future::ok((self, result))
+                            })) as Box<Future<Item = _, Error = _>>
                         }
                     }.and_then(move |(executor, result)| {
                         future::ok((

@@ -24,7 +24,7 @@ time = "0.1"
 conrod = { version = "0.57", features = ["winit", "glium"] }
 conrod_derive = "0.1.0"
 # Types:
-screeps-api = { version = "0.3", default-features = false }
+screeps-api = { version = "0.4", default-features = false }
 # Networking
 screeps-rs-network = { path = "../network" }
 # Logging
