@@ -113,7 +113,7 @@ impl ReadyRender {
             AdditionalRenderType::MapView((rooms, ref cache, _)) => {
                 let cache = cache.borrow();
                 for room_name in rooms {
-                    if let Some(&(_, ref terrain)) = cache.terrain.get(&room_name) {
+                    if let Some(&(_, Some(ref terrain))) = cache.terrain.get(&room_name) {
                         image_cache.get_or_generate_terrain(display, room_name, terrain);
                     }
                 }

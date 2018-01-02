@@ -113,7 +113,16 @@ impl MemCache {
             NetworkEvent::MyInfo { result } => self.my_info.event(result)?,
             NetworkEvent::ShardList { result } => self.shard_list.event(result)?,
             NetworkEvent::RoomTerrain { room_name, result } => {
-                let terrain = result?;
+                let terrain = match result {
+                    Ok(terrain) => Some(terrain),
+                    Err(err) => {
+                        if let &screeps_api::ErrorKind::Api(screeps_api::error::ApiError::InvalidRoom) = err.kind() {
+                            None
+                        } else {
+                            return Err(err.into());
+                        }
+                    }
+                };
                 self.rooms
                     .borrow_mut()
                     .terrain

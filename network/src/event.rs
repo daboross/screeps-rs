@@ -11,7 +11,8 @@ use screeps_api::websocket::types::room::objects::KnownRoomObject;
 pub struct MapCacheData {
     // TODO: should we be re-fetching terrain at some point, or is it alright to leave it forever in memory?
     // The client can always restart to clear this.
-    pub terrain: HashMap<RoomName, (time::Timespec, screeps_api::TerrainGrid)>,
+    /// Terrains. Terrain will be None if the room name in question is not a valid room name.
+    pub terrain: HashMap<RoomName, (time::Timespec, Option<screeps_api::TerrainGrid>)>,
     /// Map views, the Timespec is when the data was fetched.
     pub map_views: HashMap<RoomName, (time::Timespec, screeps_api::websocket::RoomMapViewUpdate)>,
     /// Single current known view of a room.
