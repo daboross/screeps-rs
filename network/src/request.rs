@@ -44,6 +44,7 @@ impl fmt::Debug for LoginDetails {
             .finish()
     }
 }
+
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct SelectedRooms {
     pub start: RoomName,
@@ -126,6 +127,7 @@ impl Iterator for IterSelectedRooms {
         }
     }
 }
+
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Request {
     Login,

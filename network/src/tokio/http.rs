@@ -44,6 +44,7 @@ where
     fn settings(&'a self) -> Self::SettingsDeref {
         Ref::map(self.settings.borrow(), Deref::deref)
     }
+
     fn api(&'a self) -> &'a screeps_api::Api<C, H, T> {
         &self.client
     }
