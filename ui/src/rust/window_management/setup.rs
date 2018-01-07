@@ -19,9 +19,7 @@ pub fn init_window() -> (glutin::EventsLoop, App) {
     let window = glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
         .with_title("screeps-rs-client");
-    let context = glutin::ContextBuilder::new()
-        .with_vsync(true)
-        .with_multisampling(4);
+    let context = glutin::ContextBuilder::new();
     let display =
         glium::Display::new(window, context, &events_loop).expect("expected initial window creation to succeed");
 
