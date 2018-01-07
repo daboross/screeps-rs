@@ -239,7 +239,7 @@ impl<N: Notify> ThreadedHandler<N> {
         use futures::Sink;
 
         let ThreadedHandler {
-            http_recv,
+            mut http_recv,
             ws_recv,
             send,
             notify,
@@ -273,29 +273,10 @@ impl<N: Notify> ThreadedHandler<N> {
             )
             .build(&handle);
 
-        let client = screeps_api::Api::with_tokens(hyper, tokens);
+        let mut client = screeps_api::Api::with_url_and_tokens(hyper, settings_rc.borrow().api_url.clone(), tokens)
+            .expect("expected already parsed URL to parse as URL");
 
-        // token pool so we only have at max 5 HTTP connections open at a time.
-        let (mut token_pool_send, token_pool_recv) = futures_mpsc::channel(5);
-
-        // fill with 5 tokens.
-        for _ in 0..5 {
-            let cloned_send = token_pool_send.clone();
-            assert!(
-                token_pool_send
-                    .start_send(http::Executor {
-                        handle: handle.clone(),
-                        send_results: send.clone(),
-                        notify: notify.clone(),
-                        executor_return: cloned_send,
-                        settings: settings_rc.clone(),
-                        client: client.clone(),
-                        disk_cache: disk_cache.clone(),
-                    })
-                    .expect("expected newly created channel to still be in scope")
-                    .is_ready()
-            );
-        }
+        struct StopAndClearPool(HttpRequest);
 
         let ws_executor = ws::Executor::new(
             handle.clone(),
@@ -305,23 +286,86 @@ impl<N: Notify> ThreadedHandler<N> {
             notify.clone(),
         );
 
-        // zip ensures that we have one token for each request! this way we'll
-        // never have more than 5 concurrent requests.
-        let result = core.run(
-            http_recv
-                .zip(token_pool_recv)
-                .and_then(|(request, executor)| {
-                    // execute request returns the executor to the token pool at the end.
-                    handle.spawn(executor.execute(request));
+        // WS executor can just run in the background. Since there's only one
+        // "executor", we don't need to restart it in the loop.
+        handle.spawn(ws_executor.run(ws_recv));
 
-                    future::ok(())
-                })
-                .fold((), |(), ()| future::ok(()))
-                .join(ws_executor.run(ws_recv)),
-        );
+        // Loop so that we can "flush" the pool of pending executions whenever
+        // we're changing settings.
+        loop {
+            let (mut exec_pool_send, mut exec_pool_recv) = futures_mpsc::channel(5);
 
-        if let Err(()) = result {
-            warn!("Unexpected error when running network core.");
+            // fill with 5 tokens.
+            for _ in 0..5 {
+                let cloned_send = exec_pool_send.clone();
+                assert!(
+                    exec_pool_send
+                        .start_send(http::Executor {
+                            handle: handle.clone(),
+                            send_results: send.clone(),
+                            notify: notify.clone(),
+                            executor_return: cloned_send,
+                            settings: settings_rc.clone(),
+                            client: client.clone(),
+                            disk_cache: disk_cache.clone(),
+                        })
+                        .expect("expected newly created channel to still be in scope")
+                        .is_ready()
+                );
+            }
+
+            // zip combines executors with requests so we'll
+            // never be running more than 5 concurrent requests.
+            let result = core.run(
+                http_recv
+                    .by_ref()
+                    .zip(exec_pool_recv.by_ref())
+                    .map_err(|()| panic!("expected futures::mpsc::sync::Receiver stream to never return an error."))
+                    .for_each(|(request, executor)| {
+                        if let HttpRequest::ChangeSettings { .. } = request {
+                            exec_pool_send
+                                .clone()
+                                .start_send(executor)
+                                .expect("expected channel to still be in scope");
+                            future::err(StopAndClearPool(request))
+                        } else {
+                            // execute request returns the executor to the token pool at the end.
+                            handle.spawn(executor.execute(request));
+                            future::ok(())
+                        }
+                    }),
+            );
+            let last_request = match result {
+                Ok(()) => break,
+                Err(StopAndClearPool(request_to_do)) => request_to_do,
+            };
+            // HTTP executor receiving ChangeSettings will have already changed
+            // the client's settings.
+            //
+            // Let's first just wait on all executors finishing their last requests, then process the
+            // request we were waiting for, then restart the loop.
+            core.run(exec_pool_recv.by_ref().take(4).for_each(|exec| {
+                drop(exec);
+                future::ok(())
+            })).expect("expected futures::mpsc::sync::Receiver stream to never return an error.");
+            core.run(
+                exec_pool_recv
+                    .by_ref()
+                    .into_future()
+                    .map_err(|((), _)| panic!("expected futures::mpsc::sync::Receiver to never return an error."))
+                    .and_then(|(executor, _)| {
+                        executor
+                            .expect("expected pool to contain 5 executors")
+                            .execute(last_request)
+                    }),
+            ).expect("expected Executor::execute to never return an errror");
+
+            // and now, in case the client URL has changed, update it. This is necessary
+            // since each cloned executor has a cloned URL, and cannot update the original.
+            let settings = settings_rc.borrow();
+            if settings.api_url != client.url {
+                client.url = settings.api_url.clone();
+            }
         }
 
         info!("single threaded event loop exiting.");

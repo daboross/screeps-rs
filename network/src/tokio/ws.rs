@@ -190,23 +190,24 @@ where
                 let (unsubscribe_from_shard, restart) = {
                     let current = &mut self.settings;
                     match (
+                        settings.api_url == current.api_url,
                         settings.username == current.username,
                         settings.password == current.password,
                         settings.shard == current.shard,
                     ) {
-                        (true, true, true) => (None, false),
-                        (true, false, true) => {
+                        (true, true, true, true) => (None, false),
+                        (true, true, false, true) => {
                             *current = settings;
                             (None, false)
                         }
-                        (true, _, false) => {
+                        (true, true, _, false) => {
                             // unsubscribe from everything for the old shard.
                             let old_shard = current.shard.clone();
                             *current = settings;
 
                             (Some(old_shard), false)
                         }
-                        (false, ..) => {
+                        (_, false, ..) | (false, ..) => {
                             // unsubscribe from everything for the old shard.
                             let old_shard = current.shard.clone();
                             *current = settings;

@@ -18,18 +18,34 @@ const LOGIN_PADDING: conrod::Scalar = 10.0;
 
 const LOGIN_LOWER_SECTION_HEIGHT: conrod::Scalar = (LOGIN_HEIGHT - HEADER_HEIGHT) / 3.0;
 
+#[derive(Copy, Clone)]
+struct TextboxIds {
+    canvas: Id,
+    textbox: Id,
+    label: Id,
+}
+
+#[derive(Copy, Clone)]
 pub struct LoginIds {
     root: Id,
     header_canvas: Id,
-    username_canvas: Id,
-    username_textbox: Id,
-    username_label: Id,
-    password_canvas: Id,
-    password_textbox: Id,
-    password_label: Id,
+    server: TextboxIds,
+    username: TextboxIds,
+    password: TextboxIds,
+    shard: TextboxIds,
     submit_canvas: Id,
     exit_button: Id,
     submit_button: Id,
+}
+
+impl TextboxIds {
+    pub fn new(gen: &mut id::Generator) -> Self {
+        TextboxIds {
+            canvas: gen.next(),
+            textbox: gen.next(),
+            label: gen.next(),
+        }
+    }
 }
 
 impl LoginIds {
@@ -37,12 +53,10 @@ impl LoginIds {
         LoginIds {
             root: gen.next(),
             header_canvas: gen.next(),
-            username_canvas: gen.next(),
-            username_textbox: gen.next(),
-            username_label: gen.next(),
-            password_canvas: gen.next(),
-            password_textbox: gen.next(),
-            password_label: gen.next(),
+            server: TextboxIds::new(gen),
+            username: TextboxIds::new(gen),
+            password: TextboxIds::new(gen),
+            shard: TextboxIds::new(gen),
             submit_canvas: gen.next(),
             exit_button: gen.next(),
             submit_button: gen.next(),
@@ -87,8 +101,10 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
         // behavior
         .flow_down(&[
             (ids.login.header_canvas, header_canvas),
-            (ids.login.username_canvas, bottom_template.clone()),
-            (ids.login.password_canvas, bottom_template.clone()),
+            (ids.login.server.canvas, bottom_template.clone()),
+            (ids.login.username.canvas, bottom_template.clone()),
+            (ids.login.password.canvas, bottom_template.clone()),
+            (ids.login.shard.canvas, bottom_template.clone()),
             (ids.login.submit_canvas, bottom_template),
         ])
         // place
@@ -101,8 +117,7 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
     fn textbox_field<F: FnMut(String)>(
         text: &str,
         mut update: F,
-        parent: Id,
-        id: Id,
+        ids: TextboxIds,
         width: conrod::Scalar,
         hide: bool,
         ui: &mut conrod::UiCell,
@@ -115,8 +130,8 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
             .pad_text(5.0)
             .hide_with_char(if hide { Some('*') } else { None })
             // position
-            .mid_right_with_margin_on(parent, 10.0)
-            .set(id, ui);
+            .mid_right_with_margin_on(ids.canvas, 10.0)
+            .set(ids.textbox, ui);
 
         let mut enter_pressed = false;
 
@@ -134,41 +149,53 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
         enter_pressed
     }
 
-    // username label
-    Text::new("username")
-        // style
-        .font_size(ui.theme.font_size_small)
-        .center_justify()
-        .no_line_wrap()
-        // position
-        .mid_left_with_margin_on(ids.login.username_canvas, LOGIN_PADDING)
-        .set(ids.login.username_label, ui);
+    fn textbox_label(text: &str, ids: TextboxIds, ui: &mut conrod::UiCell) {
+        Text::new(text)
+            // style
+            .font_size(ui.theme.font_size_small)
+            .center_justify()
+            .no_line_wrap()
+            // position
+            .mid_left_with_margin_on(ids.canvas, LOGIN_PADDING)
+            .set(ids.label, ui);
+    }
 
-    // password label
-    Text::new("password")
-        // style
-        .font_size(ui.theme.font_size_small)
-        .center_justify()
-        .no_line_wrap()
-        // position
-        .mid_left_with_margin_on(ids.login.password_canvas, LOGIN_PADDING)
-        .set(ids.login.password_label, ui);
+    textbox_label("server", ids.login.server, ui);
+    textbox_label("username", ids.login.username, ui);
+    textbox_label("password", ids.login.password, ui);
+    textbox_label("shard", ids.login.shard, ui);
 
-    let label_width = match (
-        ui.w_of(ids.login.username_label),
-        ui.w_of(ids.login.password_label),
-    ) {
-        (Some(w1), Some(w2)) => conrod::Scalar::max(w1, w2),
-        (Some(w), None) | (None, Some(w)) => w,
-        (None, None) => LOGIN_WIDTH / 2.0 - LOGIN_PADDING * 1.5,
+    let scalar_max = |f1_opt, f2_opt| match (f1_opt, f2_opt) {
+        (Some(f1), Some(f2)) => Some(conrod::Scalar::max(f1, f2)),
+        (Some(v), None) | (None, Some(v)) => Some(v),
+        (None, None) => None,
     };
+    let label_width = scalar_max(
+        scalar_max(
+            ui.w_of(ids.login.server.label),
+            ui.w_of(ids.login.username.label),
+        ),
+        scalar_max(
+            ui.w_of(ids.login.password.label),
+            ui.w_of(ids.login.shard.label),
+        ),
+    ).unwrap_or(LOGIN_WIDTH / 2.0 - LOGIN_PADDING * 1.5);
+
+    // Server field
+    let server_enter_pressed = textbox_field(
+        &state.server,
+        |s| update.push_front(UiEvent::LoginServer(s)),
+        ids.login.server,
+        LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
+        false,
+        ui,
+    );
 
     // Username field
     let username_enter_pressed = textbox_field(
         &state.username,
         |s| update.push_front(UiEvent::LoginUsername(s)),
-        ids.login.username_canvas,
-        ids.login.username_textbox,
+        ids.login.username,
         LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
         false,
         ui,
@@ -178,10 +205,19 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
     let password_enter_pressed = textbox_field(
         &state.password,
         |s| update.push_front(UiEvent::LoginPassword(s)),
-        ids.login.password_canvas,
-        ids.login.password_textbox,
+        ids.login.password,
         LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
         true,
+        ui,
+    );
+
+    // Shard field
+    let shard_enter_pressed = textbox_field(
+        &state.shard,
+        |s| update.push_front(UiEvent::LoginShard(s)),
+        ids.login.shard,
+        LOGIN_WIDTH - LOGIN_PADDING * 3.0 - label_width,
+        false,
         ui,
     );
 
@@ -217,14 +253,47 @@ pub fn create_ui(app: &mut AppCell, state: &LoginScreenState, update: &mut VecDe
 
     if exit_pressed {
         update.push_front(UiEvent::Exit);
-    } else if (submit_pressed || password_enter_pressed || username_enter_pressed) && state.username.len() > 0
-        && state.password.len() > 0
+    } else if (submit_pressed || password_enter_pressed || username_enter_pressed || server_enter_pressed
+        || shard_enter_pressed) && state.username.len() > 0 && state.password.len() > 0
     {
+        use screeps_rs_network::Url;
+        let server = if state.server.len() == 0 {
+            ::screeps_api::DEFAULT_OFFICIAL_API_URL
+                .parse()
+                .expect("expected default URL to parse")
+        } else {
+            let result = if state.server.starts_with("http") || state.server.starts_with("https") {
+                state.server.parse()
+            } else {
+                format!("http://{}", state.server).parse()
+            }.map(|url: Url| {
+                url.join("api/")
+                    .expect("expected hardcoded URL segment to parse")
+            });
+
+            match result {
+                Ok(url) => url,
+                Err(e) => {
+                    warn!("server URL invalid: {}", e);
+                    return;
+                }
+            }
+        };
         // TODO: UI option for shard.
-        let settings = ConnectionSettings::new(
+        // let settings = ConnectionSettings::new(
+        //     state.username.clone(),
+        //     state.password.clone(),
+        //     "shard0".to_owned(),
+        // );
+        let settings = ConnectionSettings::with_url(
+            server,
             state.username.clone(),
             state.password.clone(),
-            "shard0".to_owned(),
+            if state.shard.len() == 0 {
+                None
+            } else {
+                Some(state.shard.clone())
+            },
         );
 
         debug!("sending login request to existing network.");

@@ -165,15 +165,26 @@ where
             }
             HttpRequest::ChangeSettings { settings } => {
                 {
+                    // TODO: this is full of possible race conditions if we have other
+                    // requests executing concurrently with this settings change... While
+                    // we do reset current login tokens, that probably isn't enough!
+                    //
+                    // But.. we don't actually support that right now in the UI, so this
+                    // is a low priority thing. The only time we can change settings is
+                    // if the only request made so far is a login.
                     let mut current = self.settings.borrow_mut();
                     match (
+                        settings.api_url == current.api_url,
                         settings.username == current.username,
                         settings.password == current.password,
                         settings.shard == current.shard,
                     ) {
-                        (true, true, true) => (),
-                        (true, false, _) | (true, _, false) => *current = settings.clone(),
-                        (false, ..) => {
+                        // Nothing's changed
+                        (true, true, true, true) => (),
+                        // Only the shard and/or password have changed
+                        (true, true, false, _) | (true, true, _, false) => *current = settings.clone(),
+                        // Username or server has changed
+                        (true, false, ..) | (false, ..) => {
                             *current = settings.clone();
                             while let Some(_) = self.client.tokens.take_token() {}
                         }

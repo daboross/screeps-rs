@@ -7,6 +7,7 @@ extern crate hyper;
 extern crate hyper_tls;
 extern crate screeps_api;
 extern crate tokio_core;
+extern crate url;
 extern crate websocket;
 // Caching
 
@@ -31,6 +32,7 @@ pub mod diskcache;
 pub mod tokio;
 
 use std::fmt;
+pub use url::Url;
 
 pub use request::{LoginDetails, NotLoggedIn, Request, SelectedRooms};
 pub use event::{MapCache, MapCacheData, NetworkEvent};
@@ -58,14 +60,36 @@ pub trait Notify: Clone + Send + 'static {
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub struct ConnectionSettings {
+    /// Connection URL (including /api/)
+    pub api_url: url::Url,
+    /// Username to login with
     pub username: String,
+    /// Password to login with
     pub password: String,
+    /// Shard to process requests on
     pub shard: Option<String>,
 }
 
 impl ConnectionSettings {
     pub fn new<T: Into<Option<String>>>(username: String, password: String, shard: T) -> ConnectionSettings {
+        ConnectionSettings::with_url(
+            screeps_api::DEFAULT_OFFICIAL_API_URL
+                .parse()
+                .expect("expected hardcoded url to parse"),
+            username,
+            password,
+            shard,
+        )
+    }
+
+    pub fn with_url<T: Into<Option<String>>>(
+        api_url: Url,
+        username: String,
+        password: String,
+        shard: T,
+    ) -> ConnectionSettings {
         ConnectionSettings {
+            api_url: api_url,
             username: username,
             password: password,
             shard: shard.into(),

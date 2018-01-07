@@ -9,6 +9,8 @@ pub enum Event {
     SwitchShard(Option<String>),
     LoginUsername(String),
     LoginPassword(String),
+    LoginServer(String),
+    LoginShard(String),
     LoginSubmitted(time::Tm),
     MapPan {
         view_rect: conrod::Rect,
@@ -40,11 +42,24 @@ pub enum ScreenState {
     Exit,
 }
 
-#[derive(Default)] // the UI username and password boxes are empty by default.
 pub struct LoginScreenState {
     pub pending_since: Option<time::Tm>,
     pub username: String,
     pub password: String,
+    pub server: String,
+    pub shard: String,
+}
+
+impl Default for LoginScreenState {
+    fn default() -> Self {
+        LoginScreenState {
+            pending_since: None,
+            username: String::new(),
+            password: String::new(),
+            server: "https://screeps.com".to_owned(),
+            shard: "shard0".to_owned(),
+        }
+    }
 }
 
 impl ::std::fmt::Debug for LoginScreenState {
@@ -164,6 +179,14 @@ impl State {
             // Event::ShardButton(new_shard) => if let ScreenState::Map(ref mut state) = self.screen_state {
             //     state.shard = new_shard;
             // },
+            Event::LoginServer(new_server) => if let ScreenState::Login(ref mut state) = self.screen_state {
+                debug!("login server changed");
+                state.server = new_server;
+            },
+            Event::LoginShard(new_shard) => if let ScreenState::Login(ref mut state) = self.screen_state {
+                debug!("login shard changed");
+                state.shard = new_shard;
+            },
             Event::LoginUsername(new_username) => if let ScreenState::Login(ref mut state) = self.screen_state {
                 debug!("login username changed");
                 state.username = new_username;
