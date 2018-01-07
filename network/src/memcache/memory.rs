@@ -292,6 +292,7 @@ impl<'a, C: ScreepsConnection> NetworkedMemCache<'a, C> {
                     };
 
                     if resend {
+                        self.cache.requested_rooms.insert(room_name, time::get_time());
                         self.handler.send(Request::room_terrain(room_name));
                     }
                 }
