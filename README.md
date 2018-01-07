@@ -9,6 +9,8 @@ Screeps is a true programming MMO where users upload JavaScript code to power th
 
 ![map rendering screenshot][map-image]
 
+![zoomed out screenshot][strategic-view]
+
 This client is built on three main projects:
 - [`rust-screeps-api`] implements HTTP calls, endpoints and json result parsing
 - [`screeps-rs-network`] implements result caching, keeping track of http and websocket connections, and providing an 'event' api
@@ -70,5 +72,6 @@ Neighbor projects:
 [screeps-os]: https://github.com/screeps/screeps/
 [ten-by-twenty]: http://tenbytwenty.com/
 [map-image]: docs/map-render.png
+[strategic-view]: docs/strategic-view.png
 [tomaka/glutin#949]: https://github.com/tomaka/glutin/issues/949
 [`Screeps3D`]: https://github.com/bonzaiferroni/Screeps3D
