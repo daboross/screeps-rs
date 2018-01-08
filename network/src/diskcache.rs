@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
+use std::borrow::Cow;
 use std::{fmt, fs, io};
 
 use screeps_api::{RoomName, TerrainGrid};
@@ -140,8 +141,14 @@ impl Cache {
         Ok(())
     }
 
-    pub fn set_terrain(&self, room: RoomName, data: &TerrainGrid) -> impl Future<Item = (), Error = DbError> {
-        let key = CacheKey::Terrain(room.into()).encode();
+    pub fn set_terrain(
+        &self,
+        server: &str,
+        shard: Option<&str>,
+        room: RoomName,
+        data: &TerrainGrid,
+    ) -> impl Future<Item = (), Error = DbError> {
+        let key = ShardCacheKey::terrain(server, shard, room).encode();
 
         let to_store = CacheEntry {
             fetched: time::get_time(),
@@ -154,11 +161,16 @@ impl Cache {
         let sent_database = self.database.clone();
 
         self.access_pool
-            .spawn_fn(move || Ok(sent_database.set(key.to_vec(), value)))
+            .spawn_fn(move || Ok(sent_database.set(key, value)))
     }
 
-    pub fn get_terrain(&self, room: RoomName) -> impl Future<Item = Option<TerrainGrid>, Error = DbError> {
-        let key = CacheKey::Terrain(room.into()).encode();
+    pub fn get_terrain(
+        &self,
+        server: &str,
+        shard: Option<&str>,
+        room: RoomName,
+    ) -> impl Future<Item = Option<TerrainGrid>, Error = DbError> {
+        let key = ShardCacheKey::terrain(server, shard, room).encode();
 
         let sent_database = self.database.clone();
 
@@ -193,7 +205,7 @@ impl Cache {
 fn cleanup_database(db: &sled::Tree) {
     let to_remove = db.iter()
         .filter_map(|(key, value)| {
-            let parsed_key = match CacheKey::decode(&key) {
+            let parsed_key = match ShardCacheKey::decode(&key) {
                 Ok(v) => v,
                 Err(e) => {
                     warn!(
@@ -206,8 +218,8 @@ fn cleanup_database(db: &sled::Tree) {
 
             let now = time::get_time();
 
-            let keep_result = match parsed_key {
-                CacheKey::Terrain(_) => bincode::deserialize::<CacheEntry<TerrainGrid>>(&value)
+            let keep_result = match parsed_key.key {
+                CacheKeyInner::Terrain(_) => bincode::deserialize::<CacheEntry<TerrainGrid>>(&value)
                     .map(|entry| now - entry.fetched < keep_terrain_for()),
             };
 
@@ -243,25 +255,41 @@ struct CacheEntry<T> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-enum CacheKey {
+enum CacheKeyInner {
     // NOTE: whenever adding a variant, the length return in 'encode' must be tested and updated.
     Terrain(RoomNameAbsoluteCoordinates),
 }
 
-impl CacheKey {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ShardCacheKey<'a> {
+    server: Cow<'a, str>,
+    shard: Option<Cow<'a, str>>,
+    key: CacheKeyInner,
+}
+
+impl ShardCacheKey<'static> {
     fn decode(bytes: &[u8]) -> Result<Self, bincode::Error> {
         bincode::deserialize(bytes)
     }
+}
 
-    /// Returns a byte array representing this cache key, encoded using `bincode`.
-    ///
-    /// NOTE: the length of the returned array is NOT stable, and will change in the future.
-    fn encode(&self) -> [u8; 12] {
-        let mut result = [0u8; 12];
+impl<'a> ShardCacheKey<'a> {
+    fn terrain<T, U>(server: T, shard: Option<U>, room_name: RoomName) -> Self
+    where
+        T: Into<Cow<'a, str>>,
+        U: Into<Cow<'a, str>>,
+    {
+        ShardCacheKey {
+            server: server.into(),
+            shard: shard.map(Into::into),
+            key: CacheKeyInner::Terrain(room_name.into()),
+        }
+    }
 
-        bincode::serialize_into(&mut &mut result[..], self, bincode::Bounded(12))
-            .expect("expected writing cache key of known length to array of known length to succeed.");
-        result
+    /// Returns bytes representing this cache key, encoded using `bincode`.
+    fn encode(&self) -> Vec<u8> {
+        bincode::serialize(self, bincode::Infinite)
+            .expect("expected writing cache key with infinite size to be within that infinite size.")
     }
 }
 

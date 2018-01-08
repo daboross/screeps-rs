@@ -124,7 +124,12 @@ where
                 ))
             })),
             HttpRequest::RoomTerrain { room_name } => {
-                Box::new(self.disk_cache.get_terrain(room_name).then(move |result| {
+                let cache_req = self.disk_cache.get_terrain(
+                    self.client.url.as_ref(),
+                    self.settings.borrow().shard.as_ref().map(|s| &**s),
+                    room_name,
+                );
+                Box::new(cache_req.then(move |result| {
                     match result {
                         Ok(Some(terrain)) => {
                             Box::new(future::ok((self, Ok(terrain)))) as Box<Future<Item = _, Error = _>>
@@ -139,13 +144,21 @@ where
                             );
                             Box::new(request.map(|data| data.terrain).then(move |result| {
                                 if let Ok(ref data) = result {
-                                    self.handle
-                                        .spawn(self.disk_cache.set_terrain(room_name, data).then(|result| {
-                                            if let Err(e) = result {
-                                                warn!("error occurred storing to terrain cache: {}", e);
-                                            }
-                                            Ok(())
-                                        }));
+                                    self.handle.spawn(
+                                        self.disk_cache
+                                            .set_terrain(
+                                                self.client.url.as_ref(),
+                                                self.settings.borrow().shard.as_ref().map(|s| &**s),
+                                                room_name,
+                                                data,
+                                            )
+                                            .then(|result| {
+                                                if let Err(e) = result {
+                                                    warn!("error occurred storing to terrain cache: {}", e);
+                                                }
+                                                Ok(())
+                                            }),
+                                    );
                                 }
                                 future::ok((self, result))
                             })) as Box<Future<Item = _, Error = _>>
