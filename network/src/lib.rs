@@ -14,11 +14,11 @@ extern crate websocket;
 extern crate app_dirs;
 extern crate bincode;
 extern crate futures_cpupool;
-extern crate rocksdb;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate sled;
 extern crate time;
 // Logging
 
