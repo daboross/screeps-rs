@@ -1,7 +1,7 @@
 // impl Trait
 #![feature(conservative_impl_trait)]
-// Network
 
+// Network
 extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
@@ -9,8 +9,8 @@ extern crate screeps_api;
 extern crate tokio_core;
 extern crate url;
 extern crate websocket;
-// Caching
 
+// Caching
 extern crate app_dirs;
 extern crate bincode;
 extern crate futures_cpupool;
@@ -20,8 +20,8 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate sled;
 extern crate time;
-// Logging
 
+// Logging
 #[macro_use]
 extern crate log;
 

@@ -2,8 +2,8 @@
 #![feature(conservative_impl_trait)]
 // generators (useful for rendering using conrod)
 #![feature(generators, generator_trait)]
-// Graphics
 
+// Graphics
 #[macro_use]
 extern crate conrod;
 #[macro_use]
@@ -12,15 +12,15 @@ extern crate conrod_derive;
 extern crate glium;
 extern crate glutin;
 extern crate rusttype;
-// Network
 
+// Network
 extern crate screeps_api;
 extern crate screeps_rs_network;
+
 // Caching
-
 extern crate time;
-// Logging
 
+// Logging
 extern crate chrono;
 extern crate fern;
 #[macro_use]
