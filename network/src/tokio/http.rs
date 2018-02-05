@@ -136,7 +136,8 @@ where
                         }
                         other => {
                             if let Err(e) = other {
-                                warn!("error occurred fetching terrain cache: {}", e);
+                                // TODO: switch to Display when supported (in statement below as well)
+                                warn!("error occurred fetching terrain cache: {:?}", e);
                             }
                             let request = self.client.room_terrain(
                                 self.settings.borrow().shard.as_ref().map(|s| &**s),
@@ -154,7 +155,7 @@ where
                                             )
                                             .then(|result| {
                                                 if let Err(e) = result {
-                                                    warn!("error occurred storing to terrain cache: {}", e);
+                                                    warn!("error occurred storing to terrain cache: {:?}", e);
                                                 }
                                                 Ok(())
                                             }),

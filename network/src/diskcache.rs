@@ -1,7 +1,6 @@
-use std::sync::Arc;
 use std::time::Duration;
 use std::borrow::Cow;
-use std::{fmt, fs, io};
+use std::{fs, io};
 
 use screeps_api::{RoomName, TerrainGrid};
 use screeps_api::data::room_name::RoomNameAbsoluteCoordinates;
@@ -28,12 +27,24 @@ fn keep_terrain_for() -> time::Duration {
 
 mod errors {
     use std::{fmt, io};
-    use app_dirs;
+    use {app_dirs, sled};
 
     #[derive(Debug)]
     pub enum CreationError {
         DirectoryCreation(io::Error),
+        DatabaseDeletion(io::Error),
         CacheDir(app_dirs::AppDirsError),
+        Sled(sled::Error<()>),
+    }
+
+    impl CreationError {
+        pub fn directory_creation(e: io::Error) -> Self {
+            CreationError::DirectoryCreation(e)
+        }
+
+        pub fn database_deletion(e: io::Error) -> Self {
+            CreationError::DatabaseDeletion(e)
+        }
     }
 
     impl From<app_dirs::AppDirsError> for CreationError {
@@ -42,9 +53,9 @@ mod errors {
         }
     }
 
-    impl From<io::Error> for CreationError {
-        fn from(e: io::Error) -> Self {
-            CreationError::DirectoryCreation(e)
+    impl From<sled::Error<()>> for CreationError {
+        fn from(e: sled::Error<()>) -> Self {
+            CreationError::Sled(e)
         }
     }
 
@@ -52,18 +63,11 @@ mod errors {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match *self {
                 CreationError::DirectoryCreation(ref e) => write!(f, "error creating cache directory: {}", e),
+                CreationError::DatabaseDeletion(ref e) => write!(f, "error deleting corrupted cache database: {}", e),
                 CreationError::CacheDir(ref e) => write!(f, "error finding cache directory: {}", e),
-                //CreationError::Database(ref e) => write!(f, "error opening the cache database: {}", e),
+                CreationError::Sled(ref e) => write!(f, "sled database error: {:?}", e),
             }
         }
-    }
-}
-
-// placeholder for if we find what the sled database errors are.
-pub enum DbError {}
-impl fmt::Display for DbError {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        match *self {}
     }
 }
 
@@ -71,7 +75,7 @@ pub use self::errors::CreationError;
 
 #[derive(Clone)]
 pub struct Cache {
-    database: Arc<sled::Tree>,
+    database: sled::Tree,
     access_pool: CpuPool,
 }
 
@@ -79,7 +83,7 @@ impl Cache {
     pub fn load() -> Result<Self, CreationError> {
         let mut path = app_dirs::get_app_root(app_dirs::AppDataType::UserCache, &APP_DESC)?;
 
-        fs::create_dir_all(&path)?;
+        fs::create_dir_all(&path).map_err(CreationError::directory_creation)?;
 
         path.push(OLD_DB_FILE_NAME);
 
@@ -99,15 +103,21 @@ impl Cache {
 
         debug!("Opening cache from file {}", path.display());
 
-        // TODO: figure out what error messages sled can panic with, and clear data when that happens.
-        let database = sled::Config::default()
-            .path(path.to_str().expect(
-                "screeps-rs (with sled) currently doesn't handle non-unicode path names. expected unicode path name.",
-            ).to_owned())
-            .tree();
+        let config = sled::ConfigBuilder::default().path(&path).build();
+
+        let database_result = match sled::Tree::start(config.clone()) {
+            Err(sled::Error::Corruption { .. }) => {
+                warn!("deleting corrupted database: {}", path.display());
+                fs::remove_file(path).map_err(CreationError::database_deletion)?;
+                sled::Tree::start(config)
+            }
+            x => x,
+        };
+
+        let database = database_result?;
 
         Ok(Cache {
-            database: Arc::new(database),
+            database: database,
             access_pool: CpuPool::new(3),
         })
     }
@@ -125,13 +135,17 @@ impl Cache {
             stream
                 .then(move |result| {
                     if let Err(e) = result {
-                        warn!("error with cache cleanup interval: {}", e);
+                        warn!("error with cache cleanup interval: {:?}", e);
                     }
 
                     let db = db.clone();
 
                     pool.spawn_fn(move || {
-                        cleanup_database(&db);
+                        let result = cleanup_database(&db);
+                        if let Err(e) = result {
+                            warn!("error cleaning up database file: {:?}", e);
+                        }
+
                         future::ok(())
                     })
                 })
@@ -147,7 +161,7 @@ impl Cache {
         shard: Option<&str>,
         room: RoomName,
         data: &TerrainGrid,
-    ) -> impl Future<Item = (), Error = DbError> {
+    ) -> impl Future<Item = (), Error = sled::Error<()>> {
         let key = ShardCacheKey::terrain(server, shard, room).encode();
 
         let to_store = CacheEntry {
@@ -161,7 +175,7 @@ impl Cache {
         let sent_database = self.database.clone();
 
         self.access_pool
-            .spawn_fn(move || Ok(sent_database.set(key, value)))
+            .spawn_fn(move || sent_database.set(key, value))
     }
 
     pub fn get_terrain(
@@ -169,13 +183,13 @@ impl Cache {
         server: &str,
         shard: Option<&str>,
         room: RoomName,
-    ) -> impl Future<Item = Option<TerrainGrid>, Error = DbError> {
+    ) -> impl Future<Item = Option<TerrainGrid>, Error = sled::Error<()>> {
         let key = ShardCacheKey::terrain(server, shard, room).encode();
 
         let sent_database = self.database.clone();
 
         self.access_pool.spawn_fn(move || {
-            let parsed = match sent_database.get(&key) {
+            let parsed = match sent_database.get(&key)? {
                 Some(db_vector) => {
                     match bincode::deserialize_from::<_, CacheEntry<_>, _>(&mut &*db_vector, bincode::Infinite) {
                         Ok(v) => Some(v.data),
@@ -188,7 +202,7 @@ impl Cache {
                                 room, e
                             );
 
-                            sent_database.del(&key);
+                            sent_database.del(&key)?;
 
                             None
                         }
@@ -202,9 +216,14 @@ impl Cache {
     }
 }
 
-fn cleanup_database(db: &sled::Tree) {
+fn cleanup_database(db: &sled::Tree) -> Result<(), sled::Error<()>> {
     let to_remove = db.iter()
-        .filter_map(|(key, value)| {
+        .filter_map(|result| {
+            let (key, value) = match result {
+                Ok(v) => v,
+                Err(e) => return Some(Err(e)),
+            };
+
             let parsed_key = match ShardCacheKey::decode(&key) {
                 Ok(v) => v,
                 Err(e) => {
@@ -212,7 +231,7 @@ fn cleanup_database(db: &sled::Tree) {
                         "when clearing old cache: unknown key '{:?}' found (read error: {}). Deleting.",
                         key, e
                     );
-                    return Some(key);
+                    return Some(Ok(key));
                 }
             };
 
@@ -230,22 +249,24 @@ fn cleanup_database(db: &sled::Tree) {
                 }
                 Ok(false) => {
                     debug!("removing cache entry ({:?}): old data.", parsed_key);
-                    Some(key)
+                    Some(Ok(key))
                 }
                 Err(e) => {
                     debug!(
                         "removing cache entry ({:?}): invalid data ({})",
                         parsed_key, e
                     );
-                    Some(key)
+                    Some(Ok(key))
                 }
             }
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
 
     for key in to_remove {
-        db.del(&key);
+        db.del(&key)?;
     }
+
+    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
