@@ -271,7 +271,8 @@ fn cleanup_database(db: &sled::Tree) -> Result<(), sled::Error<()>> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct CacheEntry<T> {
-    #[serde(with = "timespec_serialize_seconds")] fetched: time::Timespec,
+    #[serde(with = "timespec_serialize_seconds")]
+    fetched: time::Timespec,
     data: T,
 }
 

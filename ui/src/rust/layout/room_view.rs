@@ -209,7 +209,8 @@ mod room_view_widget {
 
     #[derive(WidgetCommon)]
     pub(super) struct ScrollableRoomView {
-        #[conrod(common_builder)] common: widget::CommonBuilder,
+        #[conrod(common_builder)]
+        common: widget::CommonBuilder,
         style: Style,
     }
 

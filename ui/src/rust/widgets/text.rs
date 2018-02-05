@@ -15,7 +15,8 @@ pub mod text_box {
     /// It's reaction is triggered upon pressing of the `Enter`/`Return` key.
     #[derive(WidgetCommon)]
     pub struct TextBox<'a> {
-        #[conrod(common_builder)] common: widget::CommonBuilder,
+        #[conrod(common_builder)]
+        common: widget::CommonBuilder,
         text: &'a str,
         style: Style,
     }
@@ -232,7 +233,8 @@ pub mod text_edit {
     /// `TextEdit`'s width, however a user may change this using the `.wrap_by_character` method.
     #[derive(WidgetCommon)]
     pub struct TextEdit<'a> {
-        #[conrod(common_builder)] common: widget::CommonBuilder,
+        #[conrod(common_builder)]
+        common: widget::CommonBuilder,
         text: &'a str,
         style: Style,
     }
