@@ -169,8 +169,8 @@ impl Cache {
             data: data,
         };
 
-        let value = bincode::serialize(&to_store, bincode::Infinite)
-            .expect("expected serializing data using bincode to unequivocally succeed.");
+        let value =
+            bincode::serialize(&to_store).expect("expected serializing data using bincode to unequivocally succeed.");
 
         let sent_database = self.database.clone();
 
@@ -190,24 +190,22 @@ impl Cache {
 
         self.access_pool.spawn_fn(move || {
             let parsed = match sent_database.get(&key)? {
-                Some(db_vector) => {
-                    match bincode::deserialize_from::<_, CacheEntry<_>, _>(&mut &*db_vector, bincode::Infinite) {
-                        Ok(v) => Some(v.data),
-                        Err(e) => {
-                            warn!(
-                                "cache database entry found corrupted.\
-                                 \nEntry: (terrain:{})\
-                                 \nDecode error: {}\
-                                 \nRemoving data.",
-                                room, e
-                            );
+                Some(db_vector) => match bincode::deserialize_from::<_, CacheEntry<_>>(&mut &*db_vector) {
+                    Ok(v) => Some(v.data),
+                    Err(e) => {
+                        warn!(
+                            "cache database entry found corrupted.\
+                             \nEntry: (terrain:{})\
+                             \nDecode error: {}\
+                             \nRemoving data.",
+                            room, e
+                        );
 
-                            sent_database.del(&key)?;
+                        sent_database.del(&key)?;
 
-                            None
-                        }
+                        None
                     }
-                }
+                },
                 None => None,
             };
 
@@ -310,7 +308,7 @@ impl<'a> ShardCacheKey<'a> {
 
     /// Returns bytes representing this cache key, encoded using `bincode`.
     fn encode(&self) -> Vec<u8> {
-        bincode::serialize(self, bincode::Infinite)
+        bincode::serialize(self)
             .expect("expected writing cache key with infinite size to be within that infinite size.")
     }
 }

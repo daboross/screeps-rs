@@ -19,9 +19,9 @@ path = "src/rust/lib.rs"
 # Graphics
 glium = "0.20"
 glutin = "0.12"
-rusttype = "0.3"
+rusttype = "0.4"
 time = "0.1"
-conrod = { version = "0.57", features = ["winit", "glium"], git = "https://github.com/PistonDevelopers/conrod.git" }
+conrod = { version = "0.58", features = ["winit", "glium"] }
 conrod_derive = "0.1.0"
 # Types:
 screeps-api = { version = "0.4", default-features = false }
