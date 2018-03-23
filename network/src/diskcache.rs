@@ -8,12 +8,7 @@ use futures_cpupool::CpuPool;
 use futures::{future, stream, Future, Stream};
 use tokio_core::reactor;
 
-use {app_dirs, bincode, sled, time};
-
-static APP_DESC: app_dirs::AppInfo = app_dirs::AppInfo {
-    author: "OpenScreeps",
-    name: "screeps-rs",
-};
+use {directories, bincode, sled, time};
 
 // TODO: cache per server connection.
 const OLD_DB_FILE_NAME: &'static str = "cache";
@@ -27,13 +22,12 @@ fn keep_terrain_for() -> time::Duration {
 
 mod errors {
     use std::{fmt, io};
-    use {app_dirs, sled};
+    use sled;
 
     #[derive(Debug)]
     pub enum CreationError {
         DirectoryCreation(io::Error),
         DatabaseDeletion(io::Error),
-        CacheDir(app_dirs::AppDirsError),
         Sled(sled::Error<()>),
     }
 
@@ -44,12 +38,6 @@ mod errors {
 
         pub fn database_deletion(e: io::Error) -> Self {
             CreationError::DatabaseDeletion(e)
-        }
-    }
-
-    impl From<app_dirs::AppDirsError> for CreationError {
-        fn from(e: app_dirs::AppDirsError) -> Self {
-            CreationError::CacheDir(e)
         }
     }
 
@@ -64,7 +52,6 @@ mod errors {
             match *self {
                 CreationError::DirectoryCreation(ref e) => write!(f, "error creating cache directory: {}", e),
                 CreationError::DatabaseDeletion(ref e) => write!(f, "error deleting corrupted cache database: {}", e),
-                CreationError::CacheDir(ref e) => write!(f, "error finding cache directory: {}", e),
                 CreationError::Sled(ref e) => write!(f, "sled database error: {:?}", e),
             }
         }
@@ -81,7 +68,8 @@ pub struct Cache {
 
 impl Cache {
     pub fn load() -> Result<Self, CreationError> {
-        let mut path = app_dirs::get_app_root(app_dirs::AppDataType::UserCache, &APP_DESC)?;
+        let dirs = directories::ProjectDirs::from("net.daboross", "OpenScreeps", "screeps-rs");
+        let mut path = dirs.cache_dir().to_owned();
 
         fs::create_dir_all(&path).map_err(CreationError::directory_creation)?;
 

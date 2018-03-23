@@ -11,8 +11,8 @@ extern crate url;
 extern crate websocket;
 
 // Caching
-extern crate app_dirs;
 extern crate bincode;
+extern crate directories;
 extern crate futures_cpupool;
 extern crate serde;
 #[macro_use]
